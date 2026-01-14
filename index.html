@@ -39,7 +39,8 @@
   storageBucket: "checador-escarola.firebasestorage.app",
   messagingSenderId: "836776118383",
   appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
-}; 
+};
+
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -60,8 +61,8 @@
                     setLoading(false);
                 });
 
-                // Historial (últimos 500 registros para filtros)
-                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(500).onSnapshot(snap => {
+                // Historial (últimos 1000 registros para filtros)
+                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(1000).onSnapshot(snap => {
                     setLogs(snap.docs.map(d => ({ 
                         id: d.id, 
                         ...d.data(),
@@ -174,16 +175,14 @@
             // Generar lista de semanas (lunes a domingo)
             const weeks = useMemo(() => {
                 const list = [];
-                const now = new Date();
-                // Buscar el lunes de hace 8 semanas
-                for(let i=0; i<8; i++) {
+                for(let i=0; i<12; i++) {
                     const d = new Date();
                     d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1) - (i * 7));
                     const end = new Date(d);
                     end.setDate(d.getDate() + 6);
                     
                     const label = `${d.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} al ${end.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
-                    const value = d.toISOString().split('T')[0]; // Fecha del lunes como ID
+                    const value = d.toISOString().split('T')[0];
                     list.push({ label, value, start: new Date(d.setHours(0,0,0,0)), end: new Date(end.setHours(23,59,59,999)) });
                 }
                 return list;
@@ -198,6 +197,31 @@
                 if(!weekObj) return logs;
                 return logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
             }, [logs, selectedWeek, weeks]);
+
+            // Lógica para calcular totales por empleado
+            const employeeTotals = useMemo(() => {
+                const totals = {};
+                employees.forEach(e => totals[e.id] = { name: e.name, totalHours: 0 });
+
+                // Agrupar logs por empleado de forma cronológica (ascendente)
+                const sortedLogs = [...filteredLogs].sort((a,b) => a.dateObj - b.dateObj);
+                const lastIn = {};
+
+                sortedLogs.forEach(log => {
+                    if (log.type === 'IN') {
+                        lastIn[log.employeeId] = log.dateObj;
+                    } else if (log.type === 'OUT' && lastIn[log.employeeId]) {
+                        const diffMs = log.dateObj - lastIn[log.employeeId];
+                        const diffHrs = diffMs / (1000 * 60 * 60);
+                        if (totals[log.employeeId]) {
+                            totals[log.employeeId].totalHours += diffHrs;
+                        }
+                        delete lastIn[log.employeeId];
+                    }
+                });
+
+                return Object.values(totals);
+            }, [filteredLogs, employees]);
 
             const add = async (e) => {
                 e.preventDefault();
@@ -227,7 +251,7 @@
 
             return (
                 <div className="space-y-8 animate-fadeIn">
-                    {/* Panel Superior */}
+                    {/* Panel Superior: Agregar Empleado */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                             <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Nuevo Personal</h3>
@@ -254,7 +278,26 @@
                         </div>
                     </div>
 
-                    {/* Reportes */}
+                    {/* Resumen de Horas Totales */}
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest">Resumen Semanal de Horas</h3>
+                            <div className="text-[10px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-bold uppercase">Auto-Cálculo</div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {employeeTotals.map(total => (
+                                <div key={total.name} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase truncate mb-1">{total.name}</p>
+                                    <p className="text-2xl font-black text-slate-800">
+                                        {total.totalHours.toFixed(2)} <span className="text-xs text-slate-400">Hrs</span>
+                                    </p>
+                                </div>
+                            ))}
+                            {employeeTotals.length === 0 && <p className="text-slate-300 italic text-sm">Sin datos para mostrar.</p>}
+                        </div>
+                    </div>
+
+                    {/* Reportes Detallados */}
                     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-6 bg-slate-900 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
