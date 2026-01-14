@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reloj Checador Pro - Un Solo Archivo</title>
+    <title>Reloj Checador Pro - Reportes & Excel</title>
     
-    <!-- LIBRERÍAS CARGADAS DIRECTAMENTE (IMPORTANTE: SIN CORCHETES) -->
+    <!-- LIBRERÍAS -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -17,32 +17,31 @@
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
         .btn-press:active { transform: scale(0.95); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
 
         // ==========================================
-        // 1. CONFIGURACIÓN (RELLENA TUS DATOS AQUÍ)
+        // 1. CONFIGURACIÓN (RECUERDA TUS DATOS)
         // ==========================================
         const CLAVE_ADMIN = '1391'; 
 
-       const firebaseConfig = {
+        const firebaseConfig = {
   apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
   authDomain: "checador-escarola.firebaseapp.com",
   projectId: "checador-escarola",
   storageBucket: "checador-escarola.firebasestorage.app",
   messagingSenderId: "836776118383",
   appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
-};
+}; 
 
-        // Inicializar Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
 
@@ -54,19 +53,19 @@
 
             useEffect(() => {
                 auth.signInAnonymously().catch(console.error);
-
-                // Escuchar empleados
+                
+                // Empleados
                 const unsubEmp = db.collection('employees').orderBy('name').onSnapshot(snap => {
                     setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
                     setLoading(false);
                 });
 
-                // Escuchar marcas
-                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(50).onSnapshot(snap => {
+                // Historial (últimos 500 registros para filtros)
+                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(500).onSnapshot(snap => {
                     setLogs(snap.docs.map(d => ({ 
                         id: d.id, 
                         ...d.data(),
-                        fecha: d.data().timestamp ? d.data().timestamp.toDate().toLocaleString() : '...' 
+                        dateObj: d.data().timestamp ? d.data().timestamp.toDate() : new Date()
                     })));
                 });
 
@@ -81,24 +80,27 @@
             };
 
             if (loading) return (
-                <div className="h-screen flex items-center justify-center text-slate-400 font-bold animate-pulse">
-                    CONECTANDO CON FIREBASE...
+                <div className="h-screen flex flex-col items-center justify-center text-slate-400 font-bold bg-slate-50">
+                    <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    SINCRONIZANDO CON LA NUBE...
                 </div>
             );
 
             return (
-                <div className="min-h-screen">
-                    <nav className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-lg">
+                <div className="min-h-screen pb-10">
+                    <nav className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-lg sticky top-0 z-50">
                         <div className="flex items-center gap-2">
-                            <span className="text-xl">🕒</span>
-                            <span className="font-black uppercase tracking-tighter italic">Reloj<span className="text-emerald-400">Checador</span></span>
+                            <span className="text-xl">⏱️</span>
+                            <span className="font-black uppercase tracking-tighter italic text-lg">
+                                RELOJ<span className="text-emerald-400">CHECADOR</span> PRO
+                            </span>
                         </div>
-                        <button onClick={toggleAdmin} className="bg-slate-800 text-[10px] px-3 py-1 rounded border border-slate-700 font-bold hover:bg-slate-700 transition-all">
-                            {view === 'admin' ? 'VOLVER' : 'ADMIN'}
+                        <button onClick={toggleAdmin} className="bg-slate-800 text-[10px] px-4 py-2 rounded-lg border border-slate-700 font-black hover:bg-slate-700 transition-all uppercase tracking-widest">
+                            {view === 'admin' ? 'SALIR' : 'ACCESO ADMIN'}
                         </button>
                     </nav>
 
-                    <main className="p-4 max-w-4xl mx-auto">
+                    <main className="p-4 max-w-5xl mx-auto mt-4">
                         {view === 'reloj' ? (
                             <VistaReloj employees={employees} />
                         ) : (
@@ -119,45 +121,47 @@
                     setPin('');
                     return;
                 }
-                await db.collection('time_logs').add({
-                    employeeId: sel.id,
-                    employeeName: sel.name,
-                    type: tipo,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                alert("REGISTRO EXITOSO");
-                setSel(null); setPin('');
+                try {
+                    await db.collection('time_logs').add({
+                        employeeId: sel.id,
+                        employeeName: sel.name,
+                        type: tipo,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    alert("✅ REGISTRO EXITOSO");
+                    setSel(null); setPin('');
+                } catch(e) { alert("Error al registrar"); }
             };
 
             if (sel) return (
-                <div className="bg-white p-8 rounded-3xl shadow-2xl border border-slate-200 text-center mt-10 animate-fadeIn">
-                    <h2 className="text-2xl font-black text-slate-800 mb-6 uppercase tracking-tight">{sel.name}</h2>
+                <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-200 text-center mt-10 animate-fadeIn max-w-md mx-auto">
+                    <h2 className="text-3xl font-black text-slate-800 mb-2 uppercase tracking-tight">{sel.name}</h2>
+                    <p className="text-slate-400 text-xs font-bold mb-8 uppercase tracking-widest">Ingresa tu PIN personal</p>
                     <input 
                         type="password" 
                         value={pin} 
                         onChange={e => setPin(e.target.value)}
-                        placeholder="PIN"
-                        className="w-full text-center text-4xl p-4 bg-slate-50 border-2 rounded-2xl mb-8 outline-none focus:border-emerald-500 font-mono"
+                        className="w-full text-center text-5xl p-6 bg-slate-50 border-2 rounded-3xl mb-10 outline-none focus:border-emerald-500 font-mono tracking-widest"
                         maxLength={4}
                         autoFocus
                     />
                     <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => checar('IN')} className="bg-emerald-600 text-white p-6 rounded-2xl font-black shadow-lg btn-press">ENTRADA</button>
-                        <button onClick={() => checar('OUT')} className="bg-rose-600 text-white p-6 rounded-2xl font-black shadow-lg btn-press">SALIDA</button>
+                        <button onClick={() => checar('IN')} className="bg-emerald-600 text-white p-6 rounded-2xl font-black shadow-lg shadow-emerald-100 btn-press text-lg">ENTRADA</button>
+                        <button onClick={() => checar('OUT')} className="bg-rose-600 text-white p-6 rounded-2xl font-black shadow-lg shadow-rose-100 btn-press text-lg">SALIDA</button>
                     </div>
-                    <button onClick={() => setSel(null)} className="mt-8 text-slate-300 font-bold uppercase text-xs">Regresar</button>
+                    <button onClick={() => setSel(null)} className="mt-10 text-slate-300 font-black uppercase text-[10px] hover:text-slate-500 tracking-widest">✕ Cancelar</button>
                 </div>
             );
 
             return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
                     {employees.map(e => (
-                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-500 text-left btn-press">
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Personal</div>
-                            <div className="text-xl font-black text-slate-800 uppercase truncate">{e.name}</div>
+                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-8 rounded-3xl shadow-sm border-b-4 border-slate-200 hover:border-emerald-500 hover:shadow-xl text-left transition-all btn-press">
+                            <div className="text-[10px] text-slate-300 font-bold uppercase tracking-widest mb-1">Personal Activo</div>
+                            <div className="text-2xl font-black text-slate-800 uppercase truncate">{e.name}</div>
                         </button>
                     ))}
-                    {employees.length === 0 && <p className="col-span-full text-center py-20 text-slate-400 font-bold italic">No hay empleados registrados.</p>}
+                    {employees.length === 0 && <p className="col-span-full text-center py-20 text-slate-400 font-bold italic">No hay empleados registrados en el sistema.</p>}
                 </div>
             );
         }
@@ -165,51 +169,150 @@
         function VistaAdmin({ employees, logs }) {
             const [n, setN] = useState('');
             const [p, setP] = useState('');
+            const [selectedWeek, setSelectedWeek] = useState('');
 
-            const add = (e) => {
+            // Generar lista de semanas (lunes a domingo)
+            const weeks = useMemo(() => {
+                const list = [];
+                const now = new Date();
+                // Buscar el lunes de hace 8 semanas
+                for(let i=0; i<8; i++) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1) - (i * 7));
+                    const end = new Date(d);
+                    end.setDate(d.getDate() + 6);
+                    
+                    const label = `${d.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} al ${end.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
+                    const value = d.toISOString().split('T')[0]; // Fecha del lunes como ID
+                    list.push({ label, value, start: new Date(d.setHours(0,0,0,0)), end: new Date(end.setHours(23,59,59,999)) });
+                }
+                return list;
+            }, []);
+
+            useEffect(() => {
+                if(weeks.length > 0 && !selectedWeek) setSelectedWeek(weeks[0].value);
+            }, [weeks]);
+
+            const filteredLogs = useMemo(() => {
+                const weekObj = weeks.find(w => w.value === selectedWeek);
+                if(!weekObj) return logs;
+                return logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
+            }, [logs, selectedWeek, weeks]);
+
+            const add = async (e) => {
                 e.preventDefault();
-                db.collection('employees').add({ name: n, pin: p });
+                await db.collection('employees').add({ name: n, pin: p });
                 setN(''); setP('');
             };
 
+            const exportExcel = () => {
+                const weekLabel = weeks.find(w => w.value === selectedWeek)?.label || "Reporte";
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Fecha,Hora,Empleado,Tipo\n";
+                
+                filteredLogs.forEach(l => {
+                    const fecha = l.dateObj.toLocaleDateString();
+                    const hora = l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    csvContent += `${fecha},${hora},${l.employeeName},${l.type}\n`;
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `Reporte_${weekLabel.replace(/ /g, '_')}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
             return (
-                <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border">
-                        <h3 className="font-black text-sm mb-4 text-slate-800 uppercase border-l-4 border-emerald-500 pl-2">Añadir Empleado</h3>
-                        <form onSubmit={add} className="flex flex-col sm:flex-row gap-2">
-                            <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre" className="flex-1 p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
-                            <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" className="sm:w-32 p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required maxLength={4} />
-                            <button className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold">GUARDAR</button>
-                        </form>
+                <div className="space-y-8 animate-fadeIn">
+                    {/* Panel Superior */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                            <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Nuevo Personal</h3>
+                            <form onSubmit={add} className="space-y-3">
+                                <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre completo" className="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+                                <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" className="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required maxLength={4} />
+                                <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Guardar Empleado</button>
+                            </form>
+                        </div>
+
+                        <div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                            <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Gestión de Personal</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {employees.map(e => (
+                                    <div key={e.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="truncate">
+                                            <p className="font-black text-slate-700 uppercase text-xs truncate">{e.name}</p>
+                                            <p className="text-[10px] text-emerald-600 font-mono">PIN: {e.pin}</p>
+                                        </div>
+                                        <button onClick={() => confirm('¿Eliminar?') && db.collection('employees').doc(e.id).delete()} className="text-slate-300 hover:text-rose-500 p-2 font-bold">✕</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div className="p-4 bg-slate-50 border-b font-bold text-xs text-slate-400 uppercase tracking-widest">Registros Recientes</div>
+                    {/* Reportes */}
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-6 bg-slate-900 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                                <span className="text-white font-black text-xs uppercase tracking-widest">Filtrar Semana:</span>
+                                <select 
+                                    value={selectedWeek} 
+                                    onChange={e => setSelectedWeek(e.target.value)}
+                                    className="bg-slate-800 text-white p-2 rounded-xl border border-slate-700 outline-none text-sm font-bold w-full sm:w-auto"
+                                >
+                                    {weeks.map(w => (
+                                        <option key={w.value} value={w.value}>{w.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button 
+                                onClick={exportExcel}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all w-full sm:w-auto justify-center"
+                            >
+                                📊 Exportar a Excel (CSV)
+                            </button>
+                        </div>
+
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
-                                <thead>
-                                    <tr className="bg-slate-50 text-slate-400">
-                                        <th className="p-4">Fecha y Hora</th>
-                                        <th className="p-4">Nombre</th>
-                                        <th className="p-4">Marca</th>
-                                        <th className="p-4"></th>
+                                <thead className="bg-slate-50 text-slate-400 font-black uppercase tracking-tighter">
+                                    <tr>
+                                        <th className="p-6">Día y Fecha</th>
+                                        <th className="p-6">Empleado</th>
+                                        <th className="p-6">Movimiento</th>
+                                        <th className="p-6">Hora Exacta</th>
+                                        <th className="p-6 text-right">Admin</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {logs.map(l => (
-                                        <tr key={l.id}>
-                                            <td className="p-4 text-slate-500 font-mono">{l.fecha}</td>
-                                            <td className="p-4 font-bold text-slate-700 uppercase">{l.employeeName}</td>
-                                            <td className="p-4">
-                                                <span className={`px-2 py-1 rounded-full text-[9px] font-black ${l.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                    {filteredLogs.map(l => (
+                                        <tr key={l.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-6">
+                                                <div className="font-bold text-slate-800">{l.dateObj.toLocaleDateString('es-MX', {weekday:'long', day:'2-digit', month:'long'})}</div>
+                                            </td>
+                                            <td className="p-6 font-black text-slate-800 uppercase">{l.employeeName}</td>
+                                            <td className="p-6">
+                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest ${l.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                                                     {l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}
                                                 </span>
                                             </td>
-                                            <td className="p-4 text-right">
-                                                <button onClick={() => db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500">✕</button>
+                                            <td className="p-6 font-mono font-bold text-slate-500">
+                                                {l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
+                                            </td>
+                                            <td className="p-6 text-right">
+                                                <button onClick={() => confirm('¿Borrar registro?') && db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500 transition-colors">✕</button>
                                             </td>
                                         </tr>
                                     ))}
+                                    {filteredLogs.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="p-20 text-center text-slate-300 font-bold italic">No hay registros para la semana seleccionada.</td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
