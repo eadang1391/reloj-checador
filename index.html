@@ -2,8 +2,19 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Reloj Checador Pro</title>
+    
+    <!-- CONFIGURACIÓN PARA APP (PWA) -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- ICONO DINÁMICO -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏱️</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏱️</text></svg>">
+
+    <!-- LIBRERÍAS EXTERNAS -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -11,20 +22,50 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; overflow-x: hidden; }
+        .btn-press:active { transform: scale(0.95); opacity: 0.8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .pin-input { letter-spacing: 1.5rem; text-indent: 1.5rem; }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        
+        @keyframes slideInDown {
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 20px); opacity: 1; }
+        }
+        .animate-notification {
+            animation: slideInDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .key-btn {
+            background: white;
+            border: 1px solid #e2e8f0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            padding: 1.25rem;
+            border-radius: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.1s;
+            color: #1e293b;
+        }
+        .key-btn:active {
+            background: #f1f5f9;
+            transform: scale(0.95);
+        }
     </style>
 </head>
-<body class="bg-slate-50">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // CONFIGURACIÓN FIREBASE
+        // ==========================================
+        // CONFIGURACIÓN DE FIREBASE
+        // ==========================================
+        const CLAVE_ADMIN = '1391'; 
+
         const firebaseConfig = {
   apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
   authDomain: "checador-escarola.firebaseapp.com",
@@ -33,280 +74,346 @@
   messagingSenderId: "836776118383",
   appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
 };
-
-        const ADMIN_PASSWORD = '1391';
-
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
 
         function App() {
-            const [user, setUser] = useState(null);
-            const [view, setView] = useState('reloj'); 
+            const [view, setView] = useState('reloj');
             const [employees, setEmployees] = useState([]);
             const [logs, setLogs] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [notification, setNotification] = useState(null);
+
+            const showNotify = (msg, type = 'success') => {
+                setNotification({ msg, type });
+                setTimeout(() => setNotification(null), 3500);
+            };
 
             useEffect(() => {
                 auth.signInAnonymously().catch(console.error);
-                const unsubscribe = auth.onAuthStateChanged(u => setUser(u));
-                return () => unsubscribe();
-            }, []);
-
-            useEffect(() => {
-                if (!user) return;
+                
                 const unsubEmp = db.collection('employees').orderBy('name').onSnapshot(snap => {
-                    setEmployees(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                    setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
                     setLoading(false);
                 });
-                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').onSnapshot(snap => {
-                    setLogs(snap.docs.map(doc => ({ 
-                        id: doc.id, 
-                        ...doc.data(),
-                        dateObj: doc.data().timestamp ? doc.data().timestamp.toDate() : new Date()
+
+                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(5000).onSnapshot(snap => {
+                    setLogs(snap.docs.map(d => ({ 
+                        id: d.id, 
+                        ...d.data(),
+                        dateObj: d.data().timestamp ? d.data().timestamp.toDate() : new Date()
                     })));
                 });
-                return () => { unsubEmp(); unsubLogs(); };
-            }, [user]);
 
-            const handleAdminAccess = () => {
-                if (view === 'admin') setView('reloj');
-                else {
-                    const pass = prompt("Password Admin:");
-                    if (pass === ADMIN_PASSWORD) setView('admin');
-                }
+                return () => { unsubEmp(); unsubLogs(); };
+            }, []);
+
+            const toggleAdmin = () => {
+                if (view === 'admin') return setView('reloj');
+                const p = prompt("PIN de Administrador:");
+                if (p === CLAVE_ADMIN) setView('admin');
+                else if (p !== null) showNotify("PIN Incorrecto", "error");
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400 italic">CARGANDO SISTEMA...</div>;
+            if (loading) return (
+                <div className="h-screen flex flex-col items-center justify-center text-slate-400 font-bold bg-slate-50">
+                    <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    SINCRONIZANDO...
+                </div>
+            );
 
             return (
-                <div className="min-h-screen flex flex-col">
-                    <nav className="bg-white shadow-sm p-4 flex justify-between items-center px-8 border-b border-slate-200">
-                        <h1 className="font-black text-xl tracking-tighter text-slate-800">RELOJ <span className="text-indigo-600">PRO</span></h1>
-                        <button onClick={handleAdminAccess} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-700 transition-colors">
-                            {view === 'admin' ? 'VOLVER AL RELOJ' : 'ADMINISTRACIÓN'}
+                <div className="min-h-screen pb-10 relative">
+                    {notification && (
+                        <div className={`fixed left-1/2 top-0 z-[100] px-6 py-4 rounded-2xl shadow-2xl border-2 flex items-center gap-3 animate-notification min-w-[300px] ${
+                            notification.type === 'success' ? 'bg-white border-emerald-500 text-emerald-800' : 'bg-white border-rose-500 text-rose-800'
+                        }`}>
+                            <span className="text-2xl">{notification.type === 'success' ? '✅' : '⚠️'}</span>
+                            <span className="font-bold uppercase tracking-tight">{notification.msg}</span>
+                        </div>
+                    )}
+
+                    <nav className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-lg sticky top-0 z-50">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">⏱️</span>
+                            <span className="font-black uppercase tracking-tighter italic text-lg text-white">
+                                RELOJ<span className="text-emerald-400">CHECADOR</span>
+                            </span>
+                        </div>
+                        <button onClick={toggleAdmin} className="bg-slate-800 text-[10px] px-4 py-2 rounded-lg border border-slate-700 font-black uppercase tracking-widest">
+                            {view === 'admin' ? 'SALIR' : 'ACCESO ADMIN'}
                         </button>
                     </nav>
 
-                    <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+                    <main className="p-4 max-w-6xl mx-auto">
                         {view === 'reloj' ? (
-                            <RelojVista employees={employees} db={db} />
+                            <VistaReloj employees={employees} logs={logs} showNotify={showNotify} />
                         ) : (
-                            <AdminVista employees={employees} logs={logs} db={db} />
+                            <VistaAdmin employees={employees} logs={logs} showNotify={showNotify} />
                         )}
                     </main>
                 </div>
             );
         }
 
-        function RelojVista({ employees, db }) {
-            const [selected, setSelected] = useState(null);
+        function VistaReloj({ employees, logs, showNotify }) {
+            const [sel, setSel] = useState(null);
             const [pin, setPin] = useState('');
-            const [msg, setMsg] = useState(null);
 
-            const handleAction = async (type) => {
-                if (pin !== selected.pin) {
-                    setMsg({ type: 'error', text: 'PIN INCORRECTO' });
+            const pressKey = (num) => { if (pin.length < 4) setPin(pin + num); };
+            const clearPin = () => setPin('');
+            const deleteLast = () => setPin(pin.slice(0, -1));
+
+            const getUltimoEstado = (empId) => {
+                const log = logs.find(l => l.employeeId === empId);
+                return log ? log.type : 'OUT';
+            };
+
+            const checar = async (tipo) => {
+                if (pin !== sel.pin) {
+                    showNotify("PIN INCORRECTO", "error");
                     setPin('');
                     return;
                 }
-                await db.collection('time_logs').add({
-                    employeeId: selected.id,
-                    employeeName: selected.name,
-                    type,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                setMsg({ type: 'success', text: `REGISTRO DE ${type === 'IN' ? 'ENTRADA' : 'SALIDA'} EXITOSO` });
-                setTimeout(() => { setSelected(null); setPin(''); setMsg(null); }, 2000);
+                const ultimoEstado = getUltimoEstado(sel.id);
+                if (tipo === 'IN' && ultimoEstado === 'IN') {
+                    showNotify("YA TIENES UNA ENTRADA ACTIVA", "error");
+                    setPin('');
+                    return;
+                }
+                if (tipo === 'OUT' && ultimoEstado === 'OUT') {
+                    showNotify("DEBES MARCAR ENTRADA PRIMERO", "error");
+                    setPin('');
+                    return;
+                }
+                try {
+                    await db.collection('time_logs').add({
+                        employeeId: sel.id,
+                        employeeName: sel.name,
+                        type: tipo,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    showNotify(`${tipo === 'IN' ? 'ENTRADA' : 'SALIDA'} EXITOSA`, "success");
+                    setSel(null); setPin('');
+                } catch(e) { showNotify("Error de conexión", "error"); }
             };
 
-            if (selected) return (
-                <div className="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-xl animate-fadeIn text-center border border-slate-100">
-                    <h2 className="text-2xl font-black mb-2 uppercase text-slate-800">{selected.name}</h2>
-                    <p className="text-slate-400 font-bold text-xs mb-6 tracking-widest">INGRESA TU PIN DE SEGURIDAD</p>
-                    <input 
-                        type="password" 
-                        value={pin} 
-                        onChange={e => setPin(e.target.value)} 
-                        className="w-full text-center text-4xl p-4 bg-slate-50 rounded-2xl mb-6 pin-input outline-none border-2 border-transparent focus:border-indigo-500 transition-all font-mono" 
-                        maxLength={4} 
-                        autoFocus 
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => handleAction('IN')} className="bg-emerald-500 hover:bg-emerald-600 text-white p-5 rounded-2xl font-black text-lg shadow-lg shadow-emerald-100 transition-all">ENTRADA</button>
-                        <button onClick={() => handleAction('OUT')} className="bg-rose-500 hover:bg-rose-600 text-white p-5 rounded-2xl font-black text-lg shadow-lg shadow-rose-100 transition-all">SALIDA</button>
+            if (sel) return (
+                <div className="max-w-md mx-auto mt-6 animate-fadeIn">
+                    <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl border border-slate-200 text-center">
+                        <h2 className="text-2xl font-black text-slate-800 mb-1 uppercase truncate">{sel.name}</h2>
+                        <p className="text-slate-400 text-[10px] font-bold mb-4 uppercase tracking-widest">
+                            Estado actual: <span className={getUltimoEstado(sel.id) === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>
+                                {getUltimoEstado(sel.id) === 'IN' ? 'DENTRO' : 'FUERA'}
+                            </span>
+                        </p>
+                        
+                        <div className="flex justify-center gap-3 mb-6">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className={`w-12 h-16 border-2 rounded-2xl flex items-center justify-center text-3xl font-black ${pin[i] ? 'border-emerald-500 bg-emerald-50 text-slate-800' : 'border-slate-100 text-slate-200'}`}>
+                                    {pin[i] ? '•' : ''}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 mb-6">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
+                                <button key={n} onClick={() => pressKey(n)} className="key-btn">{n}</button>
+                            ))}
+                            <button onClick={clearPin} className="key-btn text-rose-500 text-sm">C</button>
+                            <button onClick={() => pressKey(0)} className="key-btn">0</button>
+                            <button onClick={deleteLast} className="key-btn text-slate-400 text-lg">⌫</button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => checar('IN')} disabled={pin.length < 4 || getUltimoEstado(sel.id) === 'IN'} className={`p-5 rounded-2xl font-black btn-press text-lg shadow-lg ${pin.length === 4 && getUltimoEstado(sel.id) !== 'IN' ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-slate-100 text-slate-400 opacity-50 cursor-not-allowed'}`}>ENTRADA</button>
+                            <button onClick={() => checar('OUT')} disabled={pin.length < 4 || getUltimoEstado(sel.id) === 'OUT'} className={`p-5 rounded-2xl font-black btn-press text-lg shadow-lg ${pin.length === 4 && getUltimoEstado(sel.id) !== 'OUT' ? 'bg-rose-600 text-white shadow-rose-100' : 'bg-slate-100 text-slate-400 opacity-50 cursor-not-allowed'}`}>SALIDA</button>
+                        </div>
+                        <button onClick={() => setSel(null)} className="mt-6 text-slate-300 font-black uppercase text-[10px] tracking-widest hover:text-slate-500 transition-all">✕ CANCELAR</button>
                     </div>
-                    <button onClick={() => setSelected(null)} className="mt-8 text-slate-300 hover:text-slate-500 font-bold text-sm transition-colors">CANCELAR OPERACIÓN</button>
-                    {msg && <div className={`mt-4 p-4 rounded-xl font-black animate-bounce ${msg.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{msg.text}</div>}
                 </div>
             );
 
             return (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 animate-fadeIn">
                     {employees.map(e => (
-                        <button key={e.id} onClick={() => setSelected(e)} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all text-center group">
-                            <div className="text-3xl mb-2 grayscale group-hover:grayscale-0 transition-all">👤</div>
-                            <div className="font-black text-slate-800 uppercase text-sm truncate">{e.name}</div>
-                            <div className="text-[10px] font-bold text-slate-300 mt-1 uppercase tracking-tighter">Tocar para marcar</div>
+                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-slate-200 hover:border-emerald-500 transition-all btn-press text-left">
+                            <div className="flex justify-between items-start">
+                                <div className="text-[9px] text-slate-300 font-bold uppercase tracking-widest mb-1">Personal</div>
+                                <div className={`w-2 h-2 rounded-full ${getUltimoEstado(e.id) === 'IN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-200'}`}></div>
+                            </div>
+                            <div className="text-xl font-black text-slate-800 uppercase truncate">{e.name}</div>
                         </button>
                     ))}
                 </div>
             );
         }
 
-        function AdminVista({ employees, logs, db }) {
-            const [tab, setTab] = useState('reporte');
-            const [newName, setNewName] = useState('');
-            const [newPin, setNewPin] = useState('');
-            const [newRate, setNewRate] = useState('');
+        function VistaAdmin({ employees, logs, showNotify }) {
+            const [n, setN] = useState('');
+            const [p, setP] = useState('');
+            const [s, setS] = useState(''); 
+            const [selectedWeek, setSelectedWeek] = useState('');
 
-            const addEmployee = async (e) => {
-                e.preventDefault();
-                if(!newName || !newPin || !newRate) return;
-                await db.collection('employees').add({ 
-                    name: newName.toUpperCase(), 
-                    pin: newPin, 
-                    hourlyRate: parseFloat(newRate) 
-                });
-                setNewName(''); setNewPin(''); setNewRate('');
-            };
-
-            const calculateReport = () => {
-                const report = {};
-                employees.forEach(e => {
-                    const empLogs = logs
-                        .filter(l => l.employeeId === e.id)
-                        .sort((a, b) => a.dateObj - b.dateObj);
-                    
-                    let totalMs = 0;
-                    let lastIn = null;
-                    
-                    empLogs.forEach(l => {
-                        if (l.type === 'IN') {
-                            lastIn = l.dateObj;
-                        } else if (l.type === 'OUT' && lastIn) {
-                            totalMs += (l.dateObj - lastIn);
-                            lastIn = null;
-                        }
+            const weeks = useMemo(() => {
+                const list = [];
+                for(let i=0; i<8; i++) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1) - (i * 7));
+                    const end = new Date(d); d.setDate(d.getDate() + 6);
+                    const label = `${d.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} - ${new Date(d.setDate(d.getDate())).toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
+                    list.push({ 
+                        label, 
+                        value: new Date(new Date().setDate(new Date().getDate() - (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) - (i * 7))).toISOString().split('T')[0],
+                        start: new Date(new Date(new Date().setDate(new Date().getDate() - (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) - (i * 7))).setHours(0,0,0,0)),
+                        end: new Date(new Date(new Date(new Date().setDate(new Date().getDate() - (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) - (i * 7))).setDate(new Date(new Date().setDate(new Date().getDate() - (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1) - (i * 7))).getDate() + 6)).setHours(23,59,59,999))
                     });
+                }
+                return list;
+            }, []);
 
-                    const totalHours = totalMs / (1000 * 60 * 60);
-                    report[e.id] = {
-                        name: e.name,
-                        hours: totalHours.toFixed(2),
-                        rate: e.hourlyRate || 0,
-                        total: (totalHours * (e.hourlyRate || 0)).toFixed(2)
-                    };
+            useEffect(() => { if(weeks.length > 0 && !selectedWeek) setSelectedWeek(weeks[0].value); }, [weeks]);
+
+            const filteredLogs = useMemo(() => {
+                const weekObj = weeks.find(w => w.value === selectedWeek);
+                if(!weekObj) return logs;
+                return logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
+            }, [logs, selectedWeek, weeks]);
+
+            const stats = useMemo(() => {
+                const res = {};
+                const sorted = [...filteredLogs].sort((a,b) => a.dateObj - b.dateObj);
+                employees.forEach(e => res[e.id] = { name: e.name, totalMs: 0, lastIn: null, rate: parseFloat(e.rate || 0) });
+                sorted.forEach(l => {
+                    if (!res[l.employeeId]) return;
+                    if (l.type === 'IN') res[l.employeeId].lastIn = l.dateObj;
+                    else if (l.type === 'OUT' && res[l.employeeId].lastIn) {
+                        res[l.employeeId].totalMs += (l.dateObj - res[l.employeeId].lastIn);
+                        res[l.employeeId].lastIn = null;
+                    }
                 });
-                return report;
+                return res;
+            }, [filteredLogs, employees]);
+
+            const add = async (e) => {
+                e.preventDefault();
+                if(p.length !== 4) return showNotify("El PIN debe ser de 4 dígitos", "error");
+                await db.collection('employees').add({ 
+                    name: n, 
+                    pin: p, 
+                    rate: parseFloat(s) || 0 
+                });
+                showNotify("EMPLEADO REGISTRADO");
+                setN(''); setP(''); setS('');
             };
 
-            const exportToCSV = () => {
-                const data = calculateReport();
-                let csv = "\uFEFF"; // BOM para Excel
-                csv += "Empleado,Horas Trabajadas,Sueldo por Hora,Total a Pagar\n";
-                Object.values(data).forEach(r => {
-                    csv += `"${r.name}",${r.hours},${r.rate},${r.total}\n`;
-                });
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `Nomina_${new Date().toLocaleDateString().replace(/\//g,'-')}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
+            const exportToExcel = () => {
+                if (filteredLogs.length === 0) return showNotify("No hay datos", "error");
+                const data = Object.values(stats).map(s => ({
+                    Empleado: s.name,
+                    "Horas Totales": (s.totalMs / 3600000).toFixed(2),
+                    "Pago x Hora": s.rate,
+                    "Total a Pagar": ((s.totalMs / 3600000) * s.rate).toFixed(2)
+                }));
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Nómina");
+                XLSX.writeFile(workbook, `Nomina_${selectedWeek}.xlsx`);
+                showNotify("EXCEL GENERADO");
             };
-
-            const reportData = calculateReport();
 
             return (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
-                    <div className="flex border-b border-slate-100 bg-slate-50/50">
-                        <button onClick={() => setTab('reporte')} className={`flex-1 p-4 font-black text-xs tracking-widest ${tab === 'reporte' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white' : 'text-slate-400 hover:text-slate-600'}`}>REPORTE DE NÓMINA</button>
-                        <button onClick={() => setTab('personal')} className={`flex-1 p-4 font-black text-xs tracking-widest ${tab === 'personal' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white' : 'text-slate-400 hover:text-slate-600'}`}>GESTIÓN DE PERSONAL</button>
-                    </div>
-
-                    {tab === 'reporte' ? (
-                        <div className="p-6">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                                <div>
-                                    <h3 className="font-black text-slate-800 text-lg uppercase">Resumen Contable</h3>
-                                    <p className="text-slate-400 text-xs font-bold">CÁLCULO AUTOMÁTICO BASADO EN REGISTROS</p>
+                <div className="space-y-6 mt-6 animate-fadeIn pb-20">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                            <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Nuevo Registro de Personal</h3>
+                            <form onSubmit={add} className="space-y-3">
+                                <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre del empleado" className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" required />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" maxLength={4} inputMode="numeric" required />
+                                    <input value={s} onChange={e => setS(e.target.value)} placeholder="Sueldo x Hora" className="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" type="number" step="0.01" required />
                                 </div>
-                                <button onClick={exportToCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-black text-xs shadow-lg shadow-emerald-100 transition-all flex items-center gap-2">
-                                    📥 EXPORTAR A EXCEL (CSV)
-                                </button>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="text-[10px] font-black text-slate-400 border-b border-slate-100 uppercase tracking-tighter">
-                                            <th className="p-4">Nombre del Empleado</th>
-                                            <th className="p-4 text-center">Horas Acumuladas</th>
-                                            <th className="p-4 text-center">Cuota x Hora</th>
-                                            <th className="p-4 text-right">Subtotal Nómina</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-sm font-bold text-slate-600">
-                                        {Object.values(reportData).map((r, i) => (
-                                            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                                                <td className="p-4 uppercase text-slate-800">{r.name}</td>
-                                                <td className="p-4 text-center font-mono text-indigo-500">{r.hours}h</td>
-                                                <td className="p-4 text-center text-slate-400">${r.rate}</td>
-                                                <td className="p-4 text-right text-emerald-600 font-black">${r.total}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                <button className="w-full bg-slate-900 text-white p-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg">Guardar Empleado</button>
+                            </form>
                         </div>
-                    ) : (
-                        <div className="p-6 grid md:grid-cols-2 gap-12">
-                            <form onSubmit={addEmployee} className="space-y-4">
-                                <h3 className="font-black text-slate-800 text-sm mb-6 border-l-4 border-indigo-500 pl-3 uppercase tracking-tight">Agregar Nuevo Personal</h3>
-                                <div className="space-y-4">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase">Nombre Completo</label>
-                                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="EJ: JUAN PÉREZ" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold uppercase border border-slate-100 focus:border-indigo-300 transition-all" required />
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Pin Acceso (4 Dígitos)</label>
-                                            <input value={newPin} onChange={e => setNewPin(e.target.value)} placeholder="0000" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 text-center focus:border-indigo-300 transition-all" maxLength={4} required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Sueldo por Hora</label>
-                                            <input value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="0.00" type="number" step="0.01" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 text-center focus:border-indigo-300 transition-all" required />
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-h-[300px] overflow-y-auto">
+                            <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Personal y Salarios</h3>
+                            {employees.map(e => (
+                                <div key={e.id} className="flex justify-between items-center p-2 border-b border-slate-50">
+                                    <div>
+                                        <span className="font-bold text-slate-700 text-sm uppercase block">{e.name}</span>
+                                        <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
+                                            <span className="text-emerald-600">PIN: {e.pin}</span>
+                                            <span className="text-slate-400">Sueldo: ${e.rate || 0}/hr</span>
                                         </div>
                                     </div>
+                                    <button onClick={() => confirm('¿Eliminar?') && db.collection('employees').doc(e.id).delete()} className="text-slate-300 hover:text-rose-500 font-bold p-1">✕</button>
                                 </div>
-                                <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-5 rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 transition-all mt-4">GUARDAR EMPLEADO</button>
-                            </form>
+                            ))}
+                        </div>
+                    </div>
 
-                            <div>
-                                <h3 className="font-black text-slate-800 text-sm mb-6 border-l-4 border-slate-200 pl-3 uppercase tracking-tight">Personal Registrado</h3>
-                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                    {employees.map(e => (
-                                        <div key={e.id} className="p-4 flex justify-between items-center bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all group">
-                                            <div>
-                                                <div className="font-black text-slate-800 uppercase text-xs">{e.name}</div>
-                                                <div className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-widest">PIN: {e.pin} | TARIFA: ${e.hourlyRate}/h</div>
-                                            </div>
-                                            <button 
-                                                onClick={() => { if(confirm(`¿ELIMINAR A ${e.name}?`)) db.collection('employees').doc(e.id).delete() }} 
-                                                className="text-slate-300 hover:text-rose-500 p-2 transition-colors font-black"
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {Object.values(stats).map(s => (
+                            <div key={s.name} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 transition-all group-hover:scale-150 opacity-20"></div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{s.name}</span>
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <div className="text-xl font-black text-slate-800">{(s.totalMs / 3600000).toFixed(1)} <span className="text-xs text-slate-400 font-normal">hrs</span></div>
+                                        <div className="text-[10px] text-slate-400 font-bold uppercase">Trabajadas</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-xl font-black text-emerald-600">${((s.totalMs / 3600000) * s.rate).toLocaleString('es-MX', {minimumFractionDigits: 2})}</div>
+                                        <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-tighter">Total a Pagar</div>
+                                    </div>
                                 </div>
                             </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-4 bg-slate-900 flex flex-wrap justify-between items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white p-2 rounded-xl text-xs font-bold outline-none border border-slate-700">
+                                    {weeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                                </select>
+                                <button onClick={exportToExcel} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-colors shadow-lg">
+                                    📥 Reporte de Nómina (Excel)
+                                </button>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Detalle de Asistencia</span>
                         </div>
-                    )}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-50 text-slate-400 font-black uppercase">
+                                    <tr>
+                                        <th className="p-4">Fecha</th>
+                                        <th className="p-4">Empleado</th>
+                                        <th className="p-4">Evento</th>
+                                        <th className="p-4">Hora Exacta</th>
+                                        <th className="p-4"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredLogs.map(l => (
+                                        <tr key={l.id} className="border-t border-slate-50">
+                                            <td className="p-4 font-bold">{l.dateObj.toLocaleDateString()}</td>
+                                            <td className="p-4 font-black uppercase">{l.employeeName}</td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${l.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}</span>
+                                            </td>
+                                            <td className="p-4 font-mono">{l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                                            <td className="p-4 text-right">
+                                                <button onClick={() => confirm('¿Borrar registro?') && db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500 px-4">✕</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             );
         }
