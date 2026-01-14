@@ -19,6 +19,15 @@
         .btn-press:active { transform: scale(0.95); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        
+        /* Animación para la notificación */
+        @keyframes slideInDown {
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 20px); opacity: 1; }
+        }
+        .animate-notification {
+            animation: slideInDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
     </style>
 </head>
 <body>
@@ -30,17 +39,16 @@
         // ==========================================
         // 1. CONFIGURACIÓN (RECUERDA TUS DATOS)
         // ==========================================
-        const CLAVE_ADMIN = '1391'; 
+        const CLAVE_ADMIN = '1234'; 
 
         const firebaseConfig = {
-  apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
-  authDomain: "checador-escarola.firebaseapp.com",
-  projectId: "checador-escarola",
-  storageBucket: "checador-escarola.firebasestorage.app",
-  messagingSenderId: "836776118383",
-  appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
-};
-
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROYECTO.firebaseapp.com",
+            projectId: "TU_PROYECTO",
+            storageBucket: "TU_PROYECTO.appspot.com",
+            messagingSenderId: "TU_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -51,6 +59,13 @@
             const [employees, setEmployees] = useState([]);
             const [logs, setLogs] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [notification, setNotification] = useState(null);
+
+            // Función para mostrar notificaciones personalizadas
+            const showNotify = (msg, type = 'success') => {
+                setNotification({ msg, type });
+                setTimeout(() => setNotification(null), 3500);
+            };
 
             useEffect(() => {
                 auth.signInAnonymously().catch(console.error);
@@ -61,7 +76,7 @@
                     setLoading(false);
                 });
 
-                // Historial (últimos 1000 registros para filtros)
+                // Historial
                 const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(1000).onSnapshot(snap => {
                     setLogs(snap.docs.map(d => ({ 
                         id: d.id, 
@@ -77,7 +92,7 @@
                 if (view === 'admin') return setView('reloj');
                 const p = prompt("PIN de Administrador:");
                 if (p === CLAVE_ADMIN) setView('admin');
-                else if (p !== null) alert("Incorrecto");
+                else if (p !== null) showNotify("PIN de Administrador incorrecto", "error");
             };
 
             if (loading) return (
@@ -88,7 +103,19 @@
             );
 
             return (
-                <div className="min-h-screen pb-10">
+                <div className="min-h-screen pb-10 relative">
+                    {/* Notificación Flotante */}
+                    {notification && (
+                        <div className={`fixed left-1/2 top-0 z-[100] px-6 py-4 rounded-2xl shadow-2xl border-2 flex items-center gap-3 animate-notification min-w-[300px] ${
+                            notification.type === 'success' 
+                            ? 'bg-white border-emerald-500 text-emerald-800' 
+                            : 'bg-white border-rose-500 text-rose-800'
+                        }`}>
+                            <span className="text-2xl">{notification.type === 'success' ? '✅' : '⚠️'}</span>
+                            <span className="font-bold uppercase tracking-tight">{notification.msg}</span>
+                        </div>
+                    )}
+
                     <nav className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-lg sticky top-0 z-50">
                         <div className="flex items-center gap-2">
                             <span className="text-xl">⏱️</span>
@@ -103,22 +130,22 @@
 
                     <main className="p-4 max-w-5xl mx-auto mt-4">
                         {view === 'reloj' ? (
-                            <VistaReloj employees={employees} />
+                            <VistaReloj employees={employees} showNotify={showNotify} />
                         ) : (
-                            <VistaAdmin employees={employees} logs={logs} />
+                            <VistaAdmin employees={employees} logs={logs} showNotify={showNotify} />
                         )}
                     </main>
                 </div>
             );
         }
 
-        function VistaReloj({ employees }) {
+        function VistaReloj({ employees, showNotify }) {
             const [sel, setSel] = useState(null);
             const [pin, setPin] = useState('');
 
             const checar = async (tipo) => {
                 if (pin !== sel.pin) {
-                    alert("PIN INCORRECTO");
+                    showNotify("PIN INCORRECTO", "error");
                     setPin('');
                     return;
                 }
@@ -129,9 +156,9 @@
                         type: tipo,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    alert("✅ REGISTRO EXITOSO");
+                    showNotify(`${tipo === 'IN' ? 'ENTRADA' : 'SALIDA'} REGISTRADA CON ÉXITO`, "success");
                     setSel(null); setPin('');
-                } catch(e) { alert("Error al registrar"); }
+                } catch(e) { showNotify("Error al registrar en la nube", "error"); }
             };
 
             if (sel) return (
@@ -145,6 +172,8 @@
                         className="w-full text-center text-5xl p-6 bg-slate-50 border-2 rounded-3xl mb-10 outline-none focus:border-emerald-500 font-mono tracking-widest"
                         maxLength={4}
                         autoFocus
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                     />
                     <div className="grid grid-cols-2 gap-4">
                         <button onClick={() => checar('IN')} className="bg-emerald-600 text-white p-6 rounded-2xl font-black shadow-lg shadow-emerald-100 btn-press text-lg">ENTRADA</button>
@@ -167,12 +196,11 @@
             );
         }
 
-        function VistaAdmin({ employees, logs }) {
+        function VistaAdmin({ employees, logs, showNotify }) {
             const [n, setN] = useState('');
             const [p, setP] = useState('');
             const [selectedWeek, setSelectedWeek] = useState('');
 
-            // Generar lista de semanas (lunes a domingo)
             const weeks = useMemo(() => {
                 const list = [];
                 for(let i=0; i<12; i++) {
@@ -180,7 +208,6 @@
                     d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1) - (i * 7));
                     const end = new Date(d);
                     end.setDate(d.getDate() + 6);
-                    
                     const label = `${d.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} al ${end.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
                     const value = d.toISOString().split('T')[0];
                     list.push({ label, value, start: new Date(d.setHours(0,0,0,0)), end: new Date(end.setHours(23,59,59,999)) });
@@ -198,12 +225,9 @@
                 return logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
             }, [logs, selectedWeek, weeks]);
 
-            // Lógica para calcular totales por empleado
             const employeeTotals = useMemo(() => {
                 const totals = {};
                 employees.forEach(e => totals[e.id] = { name: e.name, totalHours: 0 });
-
-                // Agrupar logs por empleado de forma cronológica (ascendente)
                 const sortedLogs = [...filteredLogs].sort((a,b) => a.dateObj - b.dateObj);
                 const lastIn = {};
 
@@ -213,19 +237,17 @@
                     } else if (log.type === 'OUT' && lastIn[log.employeeId]) {
                         const diffMs = log.dateObj - lastIn[log.employeeId];
                         const diffHrs = diffMs / (1000 * 60 * 60);
-                        if (totals[log.employeeId]) {
-                            totals[log.employeeId].totalHours += diffHrs;
-                        }
+                        if (totals[log.employeeId]) totals[log.employeeId].totalHours += diffHrs;
                         delete lastIn[log.employeeId];
                     }
                 });
-
                 return Object.values(totals);
             }, [filteredLogs, employees]);
 
             const add = async (e) => {
                 e.preventDefault();
                 await db.collection('employees').add({ name: n, pin: p });
+                showNotify("EMPLEADO AGREGADO");
                 setN(''); setP('');
             };
 
@@ -233,13 +255,11 @@
                 const weekLabel = weeks.find(w => w.value === selectedWeek)?.label || "Reporte";
                 let csvContent = "data:text/csv;charset=utf-8,";
                 csvContent += "Fecha,Hora,Empleado,Tipo\n";
-                
                 filteredLogs.forEach(l => {
                     const fecha = l.dateObj.toLocaleDateString();
                     const hora = l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     csvContent += `${fecha},${hora},${l.employeeName},${l.type}\n`;
                 });
-
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
@@ -247,17 +267,17 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                showNotify("REPORTE DESCARGADO");
             };
 
             return (
                 <div className="space-y-8 animate-fadeIn">
-                    {/* Panel Superior: Agregar Empleado */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                             <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Nuevo Personal</h3>
                             <form onSubmit={add} className="space-y-3">
                                 <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre completo" className="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required />
-                                <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" className="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required maxLength={4} />
+                                <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" className="w-full p-4 bg-slate-50 border rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500" required maxLength={4} inputMode="numeric" pattern="[0-9]*" />
                                 <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Guardar Empleado</button>
                             </form>
                         </div>
@@ -278,7 +298,6 @@
                         </div>
                     </div>
 
-                    {/* Resumen de Horas Totales */}
                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-black text-xs text-slate-400 uppercase tracking-widest">Resumen Semanal de Horas</h3>
@@ -293,33 +312,23 @@
                                     </p>
                                 </div>
                             ))}
-                            {employeeTotals.length === 0 && <p className="text-slate-300 italic text-sm">Sin datos para mostrar.</p>}
                         </div>
                     </div>
 
-                    {/* Reportes Detallados */}
                     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-6 bg-slate-900 flex flex-col sm:flex-row justify-between items-center gap-4">
                             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
                                 <span className="text-white font-black text-xs uppercase tracking-widest">Filtrar Semana:</span>
-                                <select 
-                                    value={selectedWeek} 
-                                    onChange={e => setSelectedWeek(e.target.value)}
-                                    className="bg-slate-800 text-white p-2 rounded-xl border border-slate-700 outline-none text-sm font-bold w-full sm:w-auto"
-                                >
+                                <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white p-2 rounded-xl border border-slate-700 outline-none text-sm font-bold w-full sm:w-auto">
                                     {weeks.map(w => (
                                         <option key={w.value} value={w.value}>{w.label}</option>
                                     ))}
                                 </select>
                             </div>
-                            <button 
-                                onClick={exportExcel}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all w-full sm:w-auto justify-center"
-                            >
+                            <button onClick={exportExcel} className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all w-full sm:w-auto justify-center">
                                 📊 Exportar a Excel (CSV)
                             </button>
                         </div>
-
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
                                 <thead className="bg-slate-50 text-slate-400 font-black uppercase tracking-tighter">
@@ -351,11 +360,6 @@
                                             </td>
                                         </tr>
                                     ))}
-                                    {filteredLogs.length === 0 && (
-                                        <tr>
-                                            <td colSpan="5" className="p-20 text-center text-slate-300 font-bold italic">No hay registros para la semana seleccionada.</td>
-                                        </tr>
-                                    )}
                                 </tbody>
                             </table>
                         </div>
