@@ -2,14 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reloj Checador Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reloj Checador Pro - Escarola</title>
     
-    <!-- Tipografía Redonda -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CONFIGURACIÓN PARA ICONO DE APP (PWA BÁSICA) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Reloj Escarola">
+    <link rel="apple-touch-icon" href="Logos_escarola_negro.png">
+    <link rel="icon" type="image/png" href="Logos_escarola_negro.png">
 
+    <!-- LIBRERÍAS CARGADAS DESDE CDN -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -17,47 +20,42 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
         body { 
-            font-family: 'Quicksand', sans-serif; 
-            background-color: #f0f4f8; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            -webkit-tap-highlight-color: transparent;
         }
-        .btn-press:active { transform: scale(0.95); opacity: 0.8; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fadeIn { animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        
-        .key-btn {
-            background: white;
-            border: 2px solid #edf2f7;
-            font-size: 1.5rem;
-            font-weight: 700;
-            padding: 1.25rem;
-            border-radius: 1.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            transition: all 0.2s;
-            color: #2d3748;
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
         }
-        .key-btn:active { 
-            background: #edf2f7; 
-            transform: scale(0.9);
-            border-color: #cbd5e0;
+        .pin-input { 
+            letter-spacing: 1.5rem; 
+            text-indent: 1.5rem; 
         }
-        
-        /* Redondeado extra para todo */
-        .rounded-custom { border-radius: 1.5rem; }
-        .rounded-full-custom { border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d1d1;
+            border-radius: 10px;
+        }
     </style>
 </head>
-<body>
+<body class="bg-stone-100 selection:bg-green-100">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        const CLAVE_ADMIN = '1391'; 
-
+        // ================================================================
+        // CONFIGURACIÓN DE FIREBASE
+        // ================================================================
         const firebaseConfig = {
   apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
   authDomain: "checador-escarola.firebaseapp.com",
@@ -67,334 +65,467 @@
   appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
 };
 
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const ADMIN_PASSWORD = '1391';
+        const LOGO_URL = "Logos_escarola_negro.png";
+
+        // Inicializar Firebase
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+        } catch (err) {
+            console.error("Error al inicializar Firebase:", err);
+        }
+
         const db = firebase.firestore();
         const auth = firebase.auth();
 
+        // --- COMPONENTE PRINCIPAL ---
         function App() {
-            const [view, setView] = useState('reloj');
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('reloj'); 
             const [employees, setEmployees] = useState([]);
             const [logs, setLogs] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [notification, setNotification] = useState(null);
+            const [error, setError] = useState(null);
 
-            const showNotify = (msg, type = 'success') => {
-                setNotification({ msg, type });
-                setTimeout(() => setNotification(null), 3000);
+            // 1. Manejo de Autenticación
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        await auth.signInAnonymously();
+                    } catch (e) {
+                        console.error("Error en Auth:", e);
+                        setError("Error de conexión con el servidor.");
+                    }
+                };
+                initAuth();
+                const unsubscribe = auth.onAuthStateChanged(u => setUser(u));
+                return () => unsubscribe();
+            }, []);
+
+            // 2. Carga de datos en tiempo real (Firestore)
+            useEffect(() => {
+                if (!user) return;
+
+                const unsubEmployees = db.collection('employees')
+                    .orderBy('name')
+                    .onSnapshot(
+                        (snap) => {
+                            setEmployees(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                            setLoading(false);
+                        },
+                        (err) => {
+                            console.error("Error cargando empleados:", err);
+                            setError("No se pudieron cargar los empleados.");
+                            setLoading(false);
+                        }
+                    );
+
+                const unsubLogs = db.collection('time_logs')
+                    .orderBy('timestamp', 'desc')
+                    .onSnapshot(
+                        (snap) => {
+                            setLogs(snap.docs.map(doc => ({ 
+                                id: doc.id, 
+                                ...doc.data(),
+                                dateObj: doc.data().timestamp ? doc.data().timestamp.toDate() : new Date()
+                            })));
+                        },
+                        (err) => console.error("Error cargando registros:", err)
+                    );
+
+                return () => {
+                    unsubEmployees();
+                    unsubLogs();
+                };
+            }, [user]);
+
+            const handleAdminAccess = () => {
+                if (view === 'admin') {
+                    setView('reloj');
+                } else {
+                    const pass = prompt("Introduce la contraseña de Administrador:");
+                    if (pass === ADMIN_PASSWORD) {
+                        setView('admin');
+                    } else if (pass !== null) {
+                        alert("Contraseña incorrecta.");
+                    }
+                }
             };
 
-            useEffect(() => {
-                auth.signInAnonymously().catch(console.error);
-                
-                const unsubEmp = db.collection('employees').orderBy('name').onSnapshot(snap => {
-                    setEmployees(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                    setLoading(false);
-                });
-
-                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(2000).onSnapshot(snap => {
-                    setLogs(snap.docs.map(d => ({ 
-                        id: d.id, 
-                        ...d.data(),
-                        dateObj: d.data().timestamp ? d.data().timestamp.toDate() : new Date()
-                    })));
-                });
-
-                return () => { unsubEmp(); unsubLogs(); };
-            }, []);
+            if (error) return (
+                <div className="h-screen flex items-center justify-center p-4">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm">
+                        <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                        <h2 className="text-xl font-black text-stone-800 mb-2">ERROR DE SISTEMA</h2>
+                        <p className="text-stone-500 text-sm mb-6">{error}</p>
+                        <button onClick={() => window.location.reload()} className="w-full bg-stone-900 text-white p-4 rounded-2xl font-bold">REINTENTAR</button>
+                    </div>
+                </div>
+            );
 
             if (loading) return (
-                <div className="h-screen flex flex-col items-center justify-center text-slate-400">
-                    <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
-                    <span className="font-bold tracking-widest uppercase text-xs">Cargando Sistema...</span>
+                <div className="h-screen flex items-center justify-center bg-stone-50">
+                    <div className="text-center">
+                        <div className="w-16 h-16 border-4 border-green-800 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="font-black text-stone-400 text-[10px] tracking-[0.3em] uppercase">Sincronizando con Escarola...</p>
+                    </div>
                 </div>
             );
 
             return (
-                <div className="min-h-screen pb-10">
-                    {notification && (
-                        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-full shadow-2xl border-2 font-bold animate-fadeIn flex items-center gap-2 ${
-                            notification.type === 'success' ? 'bg-white border-emerald-500 text-emerald-600' : 'bg-white border-rose-500 text-rose-600'
-                        }`}>
-                            <span>{notification.type === 'success' ? '✓' : '✕'}</span>
-                            {notification.msg}
+                <div className="min-h-screen flex flex-col">
+                    <nav className="bg-white/80 backdrop-blur-md border-b border-stone-200 p-4 sticky top-0 z-50">
+                        <div className="max-w-6xl mx-auto flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <img 
+                                    src={LOGO_URL} 
+                                    alt="Escarola Logo" 
+                                    className="h-10 w-auto" 
+                                    onError={(e) => { e.target.src = 'https://via.placeholder.com/150?text=ESCAROLA'; }}
+                                />
+                                <div className="h-8 w-[1px] bg-stone-200 hidden sm:block"></div>
+                                <h1 className="hidden sm:block font-black text-lg tracking-tighter text-stone-800 uppercase italic">
+                                    RELOJ <span className="text-green-700">CHECADOR</span>
+                                </h1>
+                            </div>
+                            <button 
+                                onClick={handleAdminAccess}
+                                className={`px-5 py-2.5 rounded-xl font-black text-[11px] tracking-widest uppercase transition-all shadow-sm ${
+                                    view === 'admin' 
+                                    ? 'bg-stone-100 text-stone-600 hover:bg-stone-200' 
+                                    : 'bg-stone-900 text-white hover:bg-stone-800'
+                                }`}
+                            >
+                                {view === 'admin' ? '← VOLVER AL RELOJ' : '⚙️ PANEL ADMIN'}
+                            </button>
                         </div>
-                    )}
-
-                    <nav className="bg-white border-b border-slate-200 p-5 flex justify-between items-center sticky top-0 z-50">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold">R</div>
-                            <div className="font-bold text-slate-800 text-lg tracking-tight">RELOJ <span className="text-emerald-500">CHECADOR PRO</span></div>
-                        </div>
-                        <button onClick={() => {
-                            if(view === 'admin') return setView('reloj');
-                            const p = prompt("PIN ADMINISTRADOR:");
-                            if(p === CLAVE_ADMIN) setView('admin');
-                        }} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest border border-slate-200 hover:bg-slate-200 transition-colors">
-                            {view === 'admin' ? '← VOLVER AL RELOJ' : 'MODO ADMIN'}
-                        </button>
                     </nav>
 
-                    <main className="p-6 max-w-6xl mx-auto">
-                        {view === 'reloj' ? <VistaReloj employees={employees} logs={logs} showNotify={showNotify} /> : <VistaAdmin employees={employees} logs={logs} showNotify={showNotify} />}
+                    <main className="flex-1 max-w-6xl mx-auto w-full p-4 md:p-8">
+                        {view === 'reloj' ? (
+                            <RelojVista employees={employees} db={db} logo={LOGO_URL} />
+                        ) : (
+                            <AdminVista employees={employees} logs={logs} db={db} />
+                        )}
                     </main>
+
+                    <footer className="p-8 text-center">
+                        <p className="text-[10px] font-bold text-stone-300 tracking-[0.2em] uppercase">Escarola Pro v2.5 • Gestión de Personal</p>
+                    </footer>
                 </div>
             );
         }
 
-        function VistaReloj({ employees, logs, showNotify }) {
-            const [sel, setSel] = useState(null);
+        // --- VISTA DEL RELOJ (TERMINAL DE EMPLEADOS) ---
+        function RelojVista({ employees, db, logo }) {
+            const [selected, setSelected] = useState(null);
             const [pin, setPin] = useState('');
+            const [status, setStatus] = useState({ active: false, type: '', message: '' });
 
-            const getUltimoEstado = (empId) => logs.find(l => l.employeeId === empId)?.type || 'OUT';
+            const handleAction = async (type) => {
+                if (pin !== selected.pin) {
+                    setStatus({ active: true, type: 'error', message: 'PIN INCORRECTO' });
+                    setPin('');
+                    return;
+                }
 
-            const checar = async (tipo) => {
-                if (pin !== sel.pin) { showNotify("PIN INCORRECTO", "error"); setPin(''); return; }
-                if (tipo === getUltimoEstado(sel.id)) { showNotify(`YA MARCÓ ${tipo === 'IN' ? 'ENTRADA' : 'SALIDA'}`, "error"); setPin(''); return; }
-                
-                await db.collection('time_logs').add({
-                    employeeId: sel.id,
-                    employeeName: sel.name,
-                    type: tipo,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                showNotify(`${tipo === 'IN' ? 'ENTRADA' : 'SALIDA'} REGISTRADA`);
-                setSel(null); setPin('');
+                try {
+                    await db.collection('time_logs').add({
+                        employeeId: selected.id,
+                        employeeName: selected.name,
+                        type: type,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        device: navigator.userAgent
+                    });
+
+                    setStatus({ 
+                        active: true, 
+                        type: 'success', 
+                        message: `¡${type === 'IN' ? 'ENTRADA' : 'SALIDA'} REGISTRADA CON ÉXITO!` 
+                    });
+
+                    setTimeout(() => {
+                        setSelected(null);
+                        setPin('');
+                        setStatus({ active: false, type: '', message: '' });
+                    }, 2500);
+                } catch (e) {
+                    setStatus({ active: true, type: 'error', message: 'ERROR DE CONEXIÓN' });
+                }
             };
 
-            if (sel) return (
-                <div className="max-w-md mx-auto mt-6 animate-fadeIn bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 text-center">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl">👤</div>
-                    <h2 className="text-2xl font-bold mb-1 text-slate-800">{sel.name}</h2>
-                    <p className="text-[11px] font-bold text-slate-400 mb-8 uppercase tracking-widest flex items-center justify-center gap-2">
-                        ESTADO: <span className={`px-2 py-0.5 rounded-full ${getUltimoEstado(sel.id) === 'IN' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                            {getUltimoEstado(sel.id) === 'IN' ? 'DENTRO' : 'FUERA'}
-                        </span>
-                    </p>
-                    
-                    <div className="flex justify-center gap-3 mb-8">
-                        {[...Array(4)].map((_, i) => (
-                            <div key={i} className={`w-14 h-16 border-2 rounded-2xl flex items-center justify-center text-3xl font-bold transition-all ${pin[i] ? 'border-emerald-500 bg-emerald-50 text-emerald-600 shadow-inner' : 'border-slate-100 text-slate-200'}`}>
-                                {pin[i] ? '•' : ''}
+            if (selected) {
+                return (
+                    <div className="max-w-md mx-auto animate-fadeIn">
+                        <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-stone-50 relative overflow-hidden text-center">
+                            {status.active && (
+                                <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center p-6 animate-fadeIn ${
+                                    status.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                                } text-white`}>
+                                    <div className="text-6xl mb-4">{status.type === 'success' ? '✅' : '❌'}</div>
+                                    <div className="text-2xl font-black uppercase tracking-tighter">{status.message}</div>
+                                    <p className="mt-2 text-white/70 font-bold text-sm">{selected.name}</p>
+                                </div>
+                            )}
+
+                            <div className="mb-8">
+                                <img src={logo} alt="Logo" className="h-12 mx-auto mb-4 object-contain opacity-20" />
+                                <h2 className="text-3xl font-black text-stone-800 uppercase tracking-tighter leading-none">{selected.name}</h2>
+                                <p className="text-stone-400 font-bold text-[10px] tracking-[0.2em] uppercase mt-2 italic">Ingresa tu código de seguridad</p>
                             </div>
-                        ))}
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-4 mb-8">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '⌫'].map(k => (
-                            <button key={k} onClick={() => {
-                                if(k === 'C') setPin('');
-                                else if(k === '⌫') setPin(pin.slice(0, -1));
-                                else if(pin.length < 4) setPin(pin + k);
-                            }} className="key-btn">{k}</button>
-                        ))}
-                    </div>
+                            <input 
+                                type="password" 
+                                value={pin}
+                                onChange={(e) => setPin(e.target.value)}
+                                className="w-full text-center text-5xl p-6 bg-stone-50 rounded-3xl border-2 border-stone-100 focus:border-green-600 outline-none mb-10 font-mono pin-input transition-all"
+                                placeholder="****"
+                                maxLength={4}
+                                autoFocus
+                            />
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => checar('IN')} disabled={pin.length < 4} className="bg-emerald-500 text-white p-5 rounded-[1.5rem] font-bold text-lg hover:bg-emerald-600 disabled:opacity-30 btn-press shadow-lg shadow-emerald-200 transition-all">ENTRADA</button>
-                        <button onClick={() => checar('OUT')} disabled={pin.length < 4} className="bg-rose-500 text-white p-5 rounded-[1.5rem] font-bold text-lg hover:bg-rose-600 disabled:opacity-30 btn-press shadow-lg shadow-rose-200 transition-all">SALIDA</button>
+                            <div className="grid grid-cols-2 gap-4">
+                                <button 
+                                    onClick={() => handleAction('IN')}
+                                    className="bg-green-600 text-white p-6 rounded-2xl font-black text-lg hover:bg-green-700 shadow-lg active:scale-95 transition-all flex flex-col items-center justify-center gap-1"
+                                >
+                                    <span className="text-xs opacity-50">MARCAR</span>
+                                    ENTRADA
+                                </button>
+                                <button 
+                                    onClick={() => handleAction('OUT')}
+                                    className="bg-red-700 text-white p-6 rounded-2xl font-black text-lg hover:bg-red-800 shadow-lg active:scale-95 transition-all flex flex-col items-center justify-center gap-1"
+                                >
+                                    <span className="text-xs opacity-50">MARCAR</span>
+                                    SALIDA
+                                </button>
+                            </div>
+
+                            <button 
+                                onClick={() => { setSelected(null); setPin(''); }}
+                                className="mt-10 text-stone-300 font-black hover:text-stone-500 uppercase text-[10px] tracking-[0.2em] transition-colors"
+                            >
+                                ✕ Cancelar Operación
+                            </button>
+                        </div>
                     </div>
-                    <button onClick={() => {setSel(null); setPin('');}} className="mt-8 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">✕ CANCELAR</button>
-                </div>
-            );
+                );
+            }
 
             return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 animate-fadeIn">
-                    {employees.map(e => (
-                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-7 rounded-[2rem] border border-slate-100 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-50 transition-all btn-press text-left flex justify-between items-center group shadow-sm">
-                            <div>
-                                <div className="font-bold text-slate-800 text-lg group-hover:text-emerald-600 transition-colors">{e.name}</div>
-                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Haga clic para marcar</div>
-                            </div>
-                            <div className={`w-4 h-4 rounded-full border-4 border-white shadow-sm ${getUltimoEstado(e.id) === 'IN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-200'}`}></div>
-                        </button>
-                    ))}
+                <div className="animate-fadeIn">
+                    <div className="mb-10 text-center">
+                        <img src={logo} alt="Logo" className="h-16 mx-auto mb-4 object-contain" />
+                        <h2 className="text-4xl font-black text-stone-800 tracking-tighter uppercase mb-2">Selecciona tu Nombre</h2>
+                        <p className="text-stone-400 font-bold text-xs uppercase tracking-widest italic">Personal de Escarola</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {employees.map(e => (
+                            <button 
+                                key={e.id} 
+                                onClick={() => setSelected(e)}
+                                className="group bg-white p-8 rounded-[2rem] shadow-sm border-b-4 border-stone-200 hover:border-green-600 hover:shadow-xl hover:-translate-y-1 transition-all text-left flex justify-between items-center"
+                            >
+                                <div className="overflow-hidden">
+                                    <div className="text-stone-300 text-[9px] font-black uppercase tracking-widest mb-1 group-hover:text-green-600 transition-colors">PERSONAL ACTIVO</div>
+                                    <div className="text-2xl font-black text-stone-800 truncate uppercase group-hover:text-green-950">{e.name}</div>
+                                </div>
+                                <div className="w-12 h-12 rounded-2xl bg-stone-50 flex items-center justify-center text-xl group-hover:bg-green-50 transition-colors">👋</div>
+                            </button>
+                        ))}
+                    </div>
+
+                    {employees.length === 0 && (
+                        <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-stone-200">
+                            <div className="text-4xl mb-4">🏜️</div>
+                            <p className="text-stone-400 font-bold uppercase tracking-widest text-xs italic">No hay empleados registrados en la base de datos.</p>
+                        </div>
+                    )}
                 </div>
             );
         }
 
-        function VistaAdmin({ employees, logs, showNotify }) {
-            const [n, setN] = useState('');
-            const [p, setP] = useState('');
-            const [s, setS] = useState('');
-            const [selectedWeek, setSelectedWeek] = useState('');
+        // --- VISTA ADMINISTRADOR (GESTIÓN Y REPORTES) ---
+        function AdminVista({ employees, logs, db }) {
+            const [tab, setTab] = useState('personal');
+            const [newName, setNewName] = useState('');
+            const [newPin, setNewPin] = useState('');
 
-            const weeks = useMemo(() => {
-                const list = [];
-                const now = new Date();
-                let monday = new Date(now);
-                const day = monday.getDay(); 
-                const diff = (day === 0 ? 6 : day - 1);
-                monday.setDate(monday.getDate() - diff);
-                monday.setHours(0, 0, 0, 0);
-
-                for(let i=0; i < 12; i++) {
-                    const start = new Date(monday);
-                    start.setDate(start.getDate() - (i * 7));
-                    const end = new Date(start);
-                    end.setDate(end.getDate() + 6);
-                    end.setHours(23, 59, 59, 999);
-                    const label = `Semana: ${start.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} - ${end.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
-                    list.push({ label, start, end, id: start.toISOString() });
-                }
-                return list;
-            }, []);
-
-            useEffect(() => { if(!selectedWeek && weeks.length > 0) setSelectedWeek(weeks[0].id); }, [weeks]);
-
-            const stats = useMemo(() => {
-                const week = weeks.find(w => w.id === selectedWeek);
-                if(!week) return {};
-                const weekLogs = logs.filter(l => l.dateObj >= week.start && l.dateObj <= week.end).sort((a,b) => a.dateObj - b.dateObj);
-                const res = {};
-                employees.forEach(e => res[e.id] = { name: e.name, ms: 0, lastIn: null, rate: parseFloat(e.rate || 0) });
-                weekLogs.forEach(l => {
-                    const emp = res[l.employeeId];
-                    if(!emp) return;
-                    if(l.type === 'IN') emp.lastIn = l.dateObj;
-                    else if(l.type === 'OUT' && emp.lastIn) {
-                        emp.ms += (l.dateObj - emp.lastIn);
-                        emp.lastIn = null;
-                    }
-                });
-                return res;
-            }, [logs, selectedWeek, weeks, employees]);
-
-            const exportXLS = () => {
-                const data = Object.values(stats).map(s => ({
-                    Empleado: s.name,
-                    "Horas Totales": (s.ms / 3600000).toFixed(2),
-                    "Pago x Hora": s.rate,
-                    "Sueldo Semanal": ((s.ms / 3600000) * s.rate).toFixed(2)
-                }));
-                const ws = XLSX.utils.json_to_sheet(data);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Nomina");
-                XLSX.writeFile(wb, `Nomina_${selectedWeek.split('T')[0]}.xlsx`);
-                showNotify("EXCEL GENERADO");
+            const addEmployee = async (e) => {
+                e.preventDefault();
+                if (newName.trim() === '' || newPin.length < 4) return;
+                try {
+                    await db.collection('employees').add({
+                        name: newName.trim().toUpperCase(),
+                        pin: newPin,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    setNewName('');
+                    setNewPin('');
+                } catch (e) { alert("Error al guardar."); }
             };
 
+            const deleteLog = (id) => {
+                if(confirm("¿Estás seguro de que quieres eliminar este registro de asistencia?")) {
+                    db.collection('time_logs').doc(id).delete();
+                }
+            };
+
+            const deleteEmployee = (id) => {
+                if(confirm("¿Eliminar empleado? Los registros de asistencia no se borrarán, pero el empleado ya no podrá checar.")) {
+                    db.collection('employees').doc(id).delete();
+                }
+            };
+
+            const logsGrouped = useMemo(() => {
+                const groups = {};
+                logs.forEach(log => {
+                    const date = log.dateObj.toLocaleDateString();
+                    if (!groups[date]) groups[date] = [];
+                    groups[date].push(log);
+                });
+                return groups;
+            }, [logs]);
+
             return (
-                <div className="space-y-8 animate-fadeIn">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                            <h3 className="text-[11px] font-bold text-slate-400 uppercase mb-6 tracking-widest flex items-center gap-2">
-                                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Nuevo Empleado
-                            </h3>
-                            <form onSubmit={async e => {
-                                e.preventDefault();
-                                if(p.length !== 4) return showNotify("PIN debe ser de 4 dígitos", "error");
-                                await db.collection('employees').add({ name: n, pin: p, rate: parseFloat(s) || 0 });
-                                setN(''); setP(''); setS(''); showNotify("EMPLEADO GUARDADO");
-                            }} className="space-y-4">
-                                <div>
-                                    <label className="text-[10px] font-bold text-slate-400 ml-2 uppercase">Nombre</label>
-                                    <input value={n} onChange={e => setN(e.target.value)} placeholder="Ej: Juan Pérez" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 border border-transparent focus:border-emerald-500 transition-all" required />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 ml-2 uppercase">PIN</label>
-                                        <input value={p} onChange={e => setP(e.target.value)} placeholder="4 dígitos" maxLength={4} className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-transparent focus:border-emerald-500 transition-all text-center font-bold tracking-widest" required />
+                <div className="animate-fadeIn space-y-8">
+                    <div className="flex gap-8 border-b border-stone-200 overflow-x-auto pb-px custom-scrollbar">
+                        <button 
+                            onClick={() => setTab('personal')}
+                            className={`pb-4 px-2 font-black text-[11px] tracking-widest whitespace-nowrap transition-all uppercase ${
+                                tab === 'personal' ? 'text-green-800 border-b-4 border-green-800' : 'text-stone-300 hover:text-stone-500'
+                            }`}
+                        >
+                            📋 Control de Personal
+                        </button>
+                        <button 
+                            onClick={() => setTab('historial')}
+                            className={`pb-4 px-2 font-black text-[11px] tracking-widest whitespace-nowrap transition-all uppercase ${
+                                tab === 'historial' ? 'text-green-800 border-b-4 border-green-800' : 'text-stone-300 hover:text-stone-500'
+                            }`}
+                        >
+                            📊 Historial de Marcas
+                        </button>
+                    </div>
+
+                    {tab === 'personal' ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-200 h-fit sticky top-24">
+                                <h3 className="font-black text-stone-800 mb-6 uppercase text-xs border-l-4 border-green-600 pl-3 italic">Nuevo Colaborador</h3>
+                                <form onSubmit={addEmployee} className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-stone-400 tracking-widest uppercase ml-2">Nombre Completo</label>
+                                        <input 
+                                            value={newName} 
+                                            onChange={e => setNewName(e.target.value)} 
+                                            placeholder="EJ. JUAN PÉREZ" 
+                                            className="w-full p-4 border-2 border-stone-50 rounded-2xl outline-none focus:border-green-600 bg-stone-50 font-bold uppercase placeholder:text-stone-300" 
+                                            required 
+                                        />
                                     </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-slate-400 ml-2 uppercase">Sueldo/Hr</label>
-                                        <input value={s} onChange={e => setS(e.target.value)} placeholder="$0.00" type="number" step="0.01" className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-transparent focus:border-emerald-500 transition-all font-bold text-emerald-600" required />
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-stone-400 tracking-widest uppercase ml-2">PIN Personal (4 dígitos)</label>
+                                        <input 
+                                            value={newPin} 
+                                            onChange={e => setNewPin(e.target.value)} 
+                                            placeholder="0000" 
+                                            className="w-full p-4 border-2 border-stone-50 rounded-2xl outline-none focus:border-green-600 bg-stone-50 font-mono text-center tracking-widest" 
+                                            required 
+                                            maxLength={4}
+                                        />
                                     </div>
+                                    <button className="w-full bg-stone-900 text-white p-5 rounded-2xl font-black hover:bg-stone-800 shadow-xl transition-all uppercase tracking-widest text-xs">Registrar en Sistema</button>
+                                </form>
+                            </div>
+
+                            <div className="lg:col-span-2 bg-white rounded-[2rem] shadow-sm border border-stone-200 overflow-hidden">
+                                <div className="p-6 bg-stone-50 border-b border-stone-100 flex justify-between items-center">
+                                    <h3 className="font-black text-stone-400 text-[10px] tracking-widest uppercase">Lista de Personal Activo</h3>
+                                    <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-stone-800 shadow-sm border border-stone-100">{employees.length} EMPLEADOS</span>
                                 </div>
-                                <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold uppercase text-xs btn-press shadow-lg shadow-slate-200 mt-2">Registrar Empleado</button>
-                            </form>
-                        </div>
-                        
-                        <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
-                            <h3 className="text-[11px] font-bold text-slate-400 uppercase mb-6 tracking-widest flex items-center gap-2">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Lista de Personal & PINs
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[300px] pr-2">
-                                {employees.map(e => (
-                                    <div key={e.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
-                                        <div>
-                                            <div className="font-bold text-slate-800 text-sm uppercase">{e.name}</div>
-                                            <div className="flex gap-3 mt-1">
-                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">PIN: {e.pin}</span>
-                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">${e.rate}/hr</span>
+                                <div className="divide-y divide-stone-100 max-h-[600px] overflow-y-auto custom-scrollbar">
+                                    {employees.map(e => (
+                                        <div key={e.id} className="p-6 flex justify-between items-center hover:bg-stone-50 transition-colors group">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-stone-100 rounded-xl flex items-center justify-center font-black text-stone-400 group-hover:bg-green-100 group-hover:text-green-700 transition-colors">
+                                                    {e.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <div className="font-black text-stone-800 uppercase leading-none mb-1">{e.name}</div>
+                                                    <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                                                        Código PIN: <span className="text-green-600 font-mono tracking-normal">{e.pin}</span>
+                                                    </div>
+                                                </div>
                                             </div>
+                                            <button 
+                                                onClick={() => deleteEmployee(e.id)}
+                                                className="p-3 text-stone-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                            >
+                                                <span className="text-xl">🗑️</span>
+                                            </button>
                                         </div>
-                                        <button onClick={() => confirm(`¿Eliminar a ${e.name}?`) && db.collection('employees').doc(e.id).delete()} className="text-slate-300 hover:text-rose-500 p-2 transition-colors">✕</button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-900 p-6 rounded-[2rem] flex flex-wrap justify-between items-center gap-4 shadow-xl shadow-slate-200">
-                        <div className="flex items-center gap-3">
-                            <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Periodo:</span>
-                            <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-700 outline-none focus:border-emerald-500">
-                                {weeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
-                            </select>
-                        </div>
-                        <button onClick={exportXLS} className="bg-emerald-500 text-white px-6 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest btn-press shadow-lg shadow-emerald-900/20">Descargar Nómina Excel</button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {Object.values(stats).map(s => (
-                            <div key={s.name} className="bg-white p-6 rounded-[2rem] border-t-4 border-t-emerald-500 shadow-sm hover:shadow-md transition-shadow">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-tighter truncate">{s.name}</div>
-                                <div className="flex justify-between items-end">
-                                    <div>
-                                        <div className="text-2xl font-bold text-slate-800">{(s.ms / 3600000).toFixed(1)} <span className="text-xs text-slate-400">hrs</span></div>
-                                        <div className="text-2xl font-bold text-blue-600 mt-1">
-                                            <span className="text-sm mr-0.5">$</span>
-                                            {((s.ms / 3600000) * s.rate).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}
-                                        </div>
-                                    </div>
-                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-lg">💰</div>
+                                    ))}
+                                    {employees.length === 0 && <div className="p-20 text-center text-stone-300 font-bold italic">No hay personal registrado aún.</div>}
                                 </div>
                             </div>
-                        ))}
-                    </div>
-
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-6 border-b border-slate-50 flex justify-between items-center">
-                            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Historial de Marcajes</h3>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-50/50 text-slate-400 font-bold uppercase text-[10px] border-b border-slate-100">
-                                    <tr>
-                                        <th className="p-5">Día / Fecha</th>
-                                        <th className="p-5">Empleado</th>
-                                        <th className="p-5">Acción</th>
-                                        <th className="p-5">Hora Exacta</th>
-                                        <th className="p-5 text-right">Admin</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {logs.filter(l => {
-                                        const week = weeks.find(w => w.id === selectedWeek);
-                                        return week ? (l.dateObj >= week.start && l.dateObj <= week.end) : false;
-                                    }).map(l => (
-                                        <tr key={l.id} className="hover:bg-slate-50/80 transition-colors">
-                                            <td className="p-5 font-bold text-slate-500 uppercase text-xs">
-                                                {l.dateObj.toLocaleDateString('es-MX', {weekday: 'long', day:'2-digit', month:'short'})}
-                                            </td>
-                                            <td className="p-5 font-bold text-slate-800 uppercase text-xs">{l.employeeName}</td>
-                                            <td className="p-5">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${l.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                                                    {l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}
-                                                </span>
-                                            </td>
-                                            <td className="p-5 font-bold text-slate-600 text-xs">
-                                                {l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
-                                            </td>
-                                            <td className="p-5 text-right">
-                                                <button onClick={() => confirm('¿Borrar este registro?') && db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500 transition-colors">✕</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                    ) : (
+                        <div className="space-y-6">
+                            {Object.entries(logsGrouped).map(([date, dayLogs]) => (
+                                <div key={date} className="bg-white rounded-[2rem] shadow-sm border border-stone-200 overflow-hidden">
+                                    <div className="bg-stone-900 p-4 px-6 flex justify-between items-center">
+                                        <h4 className="text-white font-black text-xs tracking-widest uppercase">{date}</h4>
+                                        <span className="text-white/40 font-black text-[9px] uppercase tracking-tighter">{dayLogs.length} MOVIMIENTOS</span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-stone-50 text-[10px] font-black text-stone-400 uppercase tracking-widest border-b">
+                                                <tr>
+                                                    <th className="p-5 pl-8">Empleado</th>
+                                                    <th className="p-5 text-center">Movimiento</th>
+                                                    <th className="p-5 text-right">Hora Exacta</th>
+                                                    <th className="p-5 pr-8 text-right">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-stone-100 text-sm">
+                                                {dayLogs.map(l => (
+                                                    <tr key={l.id} className="hover:bg-stone-50 transition-colors">
+                                                        <td className="p-5 pl-8 font-black text-stone-800 uppercase">{l.employeeName}</td>
+                                                        <td className="p-5 text-center">
+                                                            <span className={`px-4 py-1 rounded-full font-black text-[9px] tracking-widest ${
+                                                                l.type === 'IN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                            }`}>
+                                                                {l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-5 text-right font-mono font-bold text-stone-600 tabular-nums">
+                                                            {l.dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </td>
+                                                        <td className="p-5 pr-8 text-right">
+                                                            <button 
+                                                                onClick={() => deleteLog(l.id)}
+                                                                className="text-stone-200 hover:text-red-400 font-black transition-colors"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ))}
+                            {logs.length === 0 && (
+                                <div className="bg-white p-20 rounded-[3rem] text-center border-2 border-dashed border-stone-200">
+                                    <p className="text-stone-300 font-black uppercase text-xs tracking-widest italic">El historial de asistencia está vacío.</p>
+                                </div>
+                            )}
                         </div>
-                    </div>
+                    )}
                 </div>
             );
         }
