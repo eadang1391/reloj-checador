@@ -68,7 +68,6 @@
         .rounded-extra { border-radius: 2.5rem; }
         .rounded-button { border-radius: 1.5rem; }
 
-        /* Estilo para select más redondo */
         select {
             appearance: none;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
@@ -95,7 +94,6 @@
   messagingSenderId: "836776118383",
   appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
 };
-
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
@@ -120,7 +118,6 @@
                     setLoading(false);
                 });
 
-                // Escuchamos todos los logs (sin límite estricto de 5000 para permitir historial largo)
                 const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').onSnapshot(snap => {
                     setLogs(snap.docs.map(d => ({ 
                         id: d.id, 
@@ -201,6 +198,14 @@
                     setPin('');
                     return;
                 }
+                
+                // Validación de estado actual
+                const estadoActual = getUltimoEstado(sel.id);
+                if (tipo === estadoActual) {
+                    showNotify(`YA HAS MARCADO TU ${tipo === 'IN' ? 'ENTRADA' : 'SALIDA'}`, "error");
+                    return;
+                }
+
                 try {
                     await db.collection('time_logs').add({
                         employeeId: sel.id,
@@ -213,41 +218,63 @@
                 } catch(e) { showNotify("Error de conexión", "error"); }
             };
 
-            if (sel) return (
-                <div className="max-w-md mx-auto mt-6 animate-fadeIn">
-                    <div className="bg-white p-8 rounded-extra shadow-2xl border border-slate-100 text-center">
-                        <h2 className="text-3xl font-bold text-slate-800 mb-1 uppercase tracking-tight truncate">{sel.name}</h2>
-                        <p className="text-slate-400 text-xs font-bold mb-8 uppercase tracking-widest">
-                            Estado: <span className={getUltimoEstado(sel.id) === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>
-                                {getUltimoEstado(sel.id) === 'IN' ? '• DENTRO' : '• FUERA'}
-                            </span>
-                        </p>
-                        
-                        <div className="flex justify-center gap-4 mb-8">
-                            {[...Array(4)].map((_, i) => (
-                                <div key={i} className={`w-14 h-16 border-2 rounded-[1.5rem] flex items-center justify-center text-3xl font-black transition-all ${pin[i] ? 'border-emerald-400 bg-emerald-50 text-emerald-600 scale-105' : 'border-slate-100 text-slate-200'}`}>
-                                    {pin[i] ? '•' : ''}
-                                </div>
-                            ))}
-                        </div>
+            if (sel) {
+                const estadoActual = getUltimoEstado(sel.id);
+                const canCheckIn = estadoActual === 'OUT';
+                const canCheckOut = estadoActual === 'IN';
 
-                        <div className="grid grid-cols-3 gap-4 mb-8">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
-                                <button key={n} onClick={() => pressKey(n)} className="key-btn">{n}</button>
-                            ))}
-                            <button onClick={clearPin} className="key-btn text-rose-500 text-xs">C</button>
-                            <button onClick={() => pressKey(0)} className="key-btn">0</button>
-                            <button onClick={deleteLast} className="key-btn text-slate-400 text-xl">⌫</button>
-                        </div>
+                return (
+                    <div className="max-w-md mx-auto mt-6 animate-fadeIn">
+                        <div className="bg-white p-8 rounded-extra shadow-2xl border border-slate-100 text-center">
+                            <h2 className="text-3xl font-bold text-slate-800 mb-1 uppercase tracking-tight truncate">{sel.name}</h2>
+                            <p className="text-slate-400 text-xs font-bold mb-8 uppercase tracking-widest">
+                                Estado Actual: <span className={estadoActual === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>
+                                    {estadoActual === 'IN' ? '• DENTRO' : '• FUERA'}
+                                </span>
+                            </p>
+                            
+                            <div className="flex justify-center gap-4 mb-8">
+                                {[...Array(4)].map((_, i) => (
+                                    <div key={i} className={`w-14 h-16 border-2 rounded-[1.5rem] flex items-center justify-center text-3xl font-black transition-all ${pin[i] ? 'border-emerald-400 bg-emerald-50 text-emerald-600 scale-105' : 'border-slate-100 text-slate-200'}`}>
+                                        {pin[i] ? '•' : ''}
+                                    </div>
+                                ))}
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <button onClick={() => checar('IN')} disabled={pin.length < 4} className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-300'}`}>ENTRADA</button>
-                            <button onClick={() => checar('OUT')} disabled={pin.length < 4} className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 ? 'bg-rose-600 text-white' : 'bg-slate-50 text-slate-300'}`}>SALIDA</button>
+                            <div className="grid grid-cols-3 gap-4 mb-8">
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
+                                    <button key={n} onClick={() => pressKey(n)} className="key-btn">{n}</button>
+                                ))}
+                                <button onClick={clearPin} className="key-btn text-rose-500 text-xs">C</button>
+                                <button onClick={() => pressKey(0)} className="key-btn">0</button>
+                                <button onClick={deleteLast} className="key-btn text-slate-400 text-xl">⌫</button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <button 
+                                    onClick={() => checar('IN')} 
+                                    disabled={pin.length < 4 || !canCheckIn} 
+                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckIn ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed'}`}
+                                >
+                                    ENTRADA
+                                </button>
+                                <button 
+                                    onClick={() => checar('OUT')} 
+                                    disabled={pin.length < 4 || !canCheckOut} 
+                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckOut ? 'bg-rose-600 text-white' : 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed'}`}
+                                >
+                                    SALIDA
+                                </button>
+                            </div>
+                            
+                            {pin.length === 4 && !canCheckIn && estadoActual === 'IN' && <p className="mt-4 text-[9px] text-rose-400 font-bold uppercase tracking-wider">Debes marcar Salida primero</p>}
+                            {pin.length === 4 && !canCheckOut && estadoActual === 'OUT' && <p className="mt-4 text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Debes marcar Entrada primero</p>}
+
+                            <button onClick={() => setSel(null)} className="mt-8 text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] hover:text-slate-600">✕ Cancelar</button>
                         </div>
-                        <button onClick={() => setSel(null)} className="mt-8 text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] hover:text-slate-600">✕ Cancelar</button>
                     </div>
-                </div>
-            );
+                );
+            }
 
             return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 animate-fadeIn">
@@ -270,15 +297,10 @@
             const [s, setS] = useState(''); 
             const [selectedWeek, setSelectedWeek] = useState('');
 
-            // Generador de semanas: Lunes a Domingo
             const weeks = useMemo(() => {
                 const list = [];
-                const today = new Date();
-                
-                // Retrocedemos 52 semanas (1 año) para que el historial sea amplio ("infinito" práctico)
                 for(let i=0; i < 52; i++) {
                     const current = new Date();
-                    // Ajustamos al lunes de la semana actual
                     const day = current.getDay();
                     const diff = current.getDate() - day + (day === 0 ? -6 : 1);
                     const monday = new Date(current.setDate(diff - (i * 7)));
