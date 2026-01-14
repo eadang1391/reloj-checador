@@ -142,7 +142,7 @@
 
                     <main className="p-4 max-w-5xl mx-auto">
                         {view === 'reloj' ? (
-                            <VistaReloj employees={employees} showNotify={showNotify} />
+                            <VistaReloj employees={employees} logs={logs} showNotify={showNotify} />
                         ) : (
                             <VistaAdmin employees={employees} logs={logs} showNotify={showNotify} />
                         )}
@@ -151,7 +151,7 @@
             );
         }
 
-        function VistaReloj({ employees, showNotify }) {
+        function VistaReloj({ employees, logs, showNotify }) {
             const [sel, setSel] = useState(null);
             const [pin, setPin] = useState('');
 
@@ -162,12 +162,33 @@
             const clearPin = () => setPin('');
             const deleteLast = () => setPin(pin.slice(0, -1));
 
+            // Función para obtener el último estado del empleado
+            const getUltimoEstado = (empId) => {
+                const log = logs.find(l => l.employeeId === empId);
+                return log ? log.type : 'OUT'; // Por defecto asumimos que está fuera
+            };
+
             const checar = async (tipo) => {
                 if (pin !== sel.pin) {
                     showNotify("PIN INCORRECTO", "error");
                     setPin('');
                     return;
                 }
+
+                const ultimoEstado = getUltimoEstado(sel.id);
+
+                // VALIDACIONES DE FLUJO
+                if (tipo === 'IN' && ultimoEstado === 'IN') {
+                    showNotify("YA TIENES UNA ENTRADA ACTIVA", "error");
+                    setPin('');
+                    return;
+                }
+                if (tipo === 'OUT' && ultimoEstado === 'OUT') {
+                    showNotify("DEBES MARCAR ENTRADA PRIMERO", "error");
+                    setPin('');
+                    return;
+                }
+
                 try {
                     await db.collection('time_logs').add({
                         employeeId: sel.id,
@@ -184,7 +205,11 @@
                 <div className="max-w-md mx-auto mt-6 animate-fadeIn">
                     <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl border border-slate-200 text-center">
                         <h2 className="text-2xl font-black text-slate-800 mb-1 uppercase truncate">{sel.name}</h2>
-                        <p className="text-slate-400 text-[10px] font-bold mb-4 uppercase tracking-widest">Usa el teclado táctil</p>
+                        <p className="text-slate-400 text-[10px] font-bold mb-4 uppercase tracking-widest">
+                            Estado actual: <span className={getUltimoEstado(sel.id) === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>
+                                {getUltimoEstado(sel.id) === 'IN' ? 'DENTRO' : 'FUERA'}
+                            </span>
+                        </p>
                         
                         <div className="flex justify-center gap-3 mb-6">
                             {[...Array(4)].map((_, i) => (
@@ -204,8 +229,20 @@
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <button onClick={() => checar('IN')} disabled={pin.length < 4} className={`p-5 rounded-2xl font-black btn-press text-lg shadow-lg ${pin.length === 4 ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-slate-100 text-slate-400 opacity-50'}`}>ENTRADA</button>
-                            <button onClick={() => checar('OUT')} disabled={pin.length < 4} className={`p-5 rounded-2xl font-black btn-press text-lg shadow-lg ${pin.length === 4 ? 'bg-rose-600 text-white shadow-rose-100' : 'bg-slate-100 text-slate-400 opacity-50'}`}>SALIDA</button>
+                            <button 
+                                onClick={() => checar('IN')} 
+                                disabled={pin.length < 4 || getUltimoEstado(sel.id) === 'IN'} 
+                                className={`p-5 rounded-2xl font-black btn-press text-lg shadow-lg ${pin.length === 4 && getUltimoEstado(sel.id) !== 'IN' ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-slate-100 text-slate-400 opacity-50 cursor-not-allowed'}`}
+                            >
+                                ENTRADA
+                            </button>
+                            <button 
+                                onClick={() => checar('OUT')} 
+                                disabled={pin.length < 4 || getUltimoEstado(sel.id) === 'OUT'} 
+                                className={`p-5 rounded-2xl font-black btn-press text-lg shadow-lg ${pin.length === 4 && getUltimoEstado(sel.id) !== 'OUT' ? 'bg-rose-600 text-white shadow-rose-100' : 'bg-slate-100 text-slate-400 opacity-50 cursor-not-allowed'}`}
+                            >
+                                SALIDA
+                            </button>
                         </div>
                         <button onClick={() => setSel(null)} className="mt-6 text-slate-300 font-black uppercase text-[10px] tracking-widest hover:text-slate-500 transition-all">✕ CANCELAR</button>
                     </div>
@@ -216,7 +253,10 @@
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 animate-fadeIn">
                     {employees.map(e => (
                         <button key={e.id} onClick={() => setSel(e)} className="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-slate-200 hover:border-emerald-500 transition-all btn-press text-left">
-                            <div className="text-[9px] text-slate-300 font-bold uppercase tracking-widest mb-1">Personal</div>
+                            <div className="flex justify-between items-start">
+                                <div className="text-[9px] text-slate-300 font-bold uppercase tracking-widest mb-1">Personal</div>
+                                <div className={`w-2 h-2 rounded-full ${getUltimoEstado(e.id) === 'IN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-200'}`}></div>
+                            </div>
                             <div className="text-xl font-black text-slate-800 uppercase truncate">{e.name}</div>
                         </button>
                     ))}
@@ -250,7 +290,6 @@
                 return logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
             }, [logs, selectedWeek, weeks]);
 
-            // LÓGICA DE CÁLCULO DE HORAS
             const stats = useMemo(() => {
                 const res = {};
                 const sorted = [...filteredLogs].sort((a,b) => a.dateObj - b.dateObj);
@@ -279,14 +318,12 @@
 
             const exportToExcel = () => {
                 if (filteredLogs.length === 0) return showNotify("No hay datos para exportar", "error");
-                
                 const data = filteredLogs.map(l => ({
                     Fecha: l.dateObj.toLocaleDateString(),
                     Empleado: l.employeeName,
                     Tipo: l.type,
                     Hora: l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 }));
-
                 const worksheet = XLSX.utils.json_to_sheet(data);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Registros");
@@ -319,7 +356,6 @@
                         </div>
                     </div>
 
-                    {/* TARJETAS DE TOTAL DE HORAS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {Object.values(stats).map(s => (
                             <div key={s.name} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -337,10 +373,7 @@
                                 <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white p-2 rounded-xl text-xs font-bold outline-none border border-slate-700">
                                     {weeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
                                 </select>
-                                <button 
-                                    onClick={exportToExcel}
-                                    className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-900/20"
-                                >
+                                <button onClick={exportToExcel} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-colors shadow-lg">
                                     📥 Exportar Excel
                                 </button>
                             </div>
@@ -384,4 +417,3 @@
     </script>
 </body>
 </html>
-
