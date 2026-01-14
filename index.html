@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reloj Checador Pro - Teclado Táctil</title>
+    <title>Reloj Checador Pro - Completo</title>
     
     <!-- LIBRERÍAS -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -28,7 +28,6 @@
             animation: slideInDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
 
-        /* Estilo para los botones del teclado */
         .key-btn {
             background: white;
             border: 1px solid #e2e8f0;
@@ -91,7 +90,7 @@
                     setLoading(false);
                 });
 
-                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(1000).onSnapshot(snap => {
+                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(2000).onSnapshot(snap => {
                     setLogs(snap.docs.map(d => ({ 
                         id: d.id, 
                         ...d.data(),
@@ -185,7 +184,6 @@
                         <h2 className="text-2xl font-black text-slate-800 mb-1 uppercase truncate">{sel.name}</h2>
                         <p className="text-slate-400 text-[10px] font-bold mb-4 uppercase tracking-widest">Usa el teclado táctil</p>
                         
-                        {/* Visualizador de PIN */}
                         <div className="flex justify-center gap-3 mb-6">
                             {[...Array(4)].map((_, i) => (
                                 <div key={i} className={`w-12 h-16 border-2 rounded-2xl flex items-center justify-center text-3xl font-black ${pin[i] ? 'border-emerald-500 bg-emerald-50 text-slate-800' : 'border-slate-100 text-slate-200'}`}>
@@ -194,7 +192,6 @@
                             ))}
                         </div>
 
-                        {/* Teclado Numérico de la App */}
                         <div className="grid grid-cols-3 gap-3 mb-6">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
                                 <button key={n} onClick={() => pressKey(n)} className="key-btn">{n}</button>
@@ -225,7 +222,6 @@
             );
         }
 
-        // --- VISTA ADMIN (IGUAL QUE ANTES PERO CON NOTIFICACIONES) ---
         function VistaAdmin({ employees, logs, showNotify }) {
             const [n, setN] = useState('');
             const [p, setP] = useState('');
@@ -252,6 +248,25 @@
                 return logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
             }, [logs, selectedWeek, weeks]);
 
+            // LÓGICA DE CÁLCULO DE HORAS
+            const stats = useMemo(() => {
+                const res = {};
+                const sorted = [...filteredLogs].sort((a,b) => a.dateObj - b.dateObj);
+                
+                employees.forEach(e => res[e.id] = { name: e.name, totalMs: 0, lastIn: null });
+                
+                sorted.forEach(l => {
+                    if (!res[l.employeeId]) return;
+                    if (l.type === 'IN') {
+                        res[l.employeeId].lastIn = l.dateObj;
+                    } else if (l.type === 'OUT' && res[l.employeeId].lastIn) {
+                        res[l.employeeId].totalMs += (l.dateObj - res[l.employeeId].lastIn);
+                        res[l.employeeId].lastIn = null;
+                    }
+                });
+                return res;
+            }, [filteredLogs, employees]);
+
             const add = async (e) => {
                 e.preventDefault();
                 if(p.length !== 4) return showNotify("El PIN debe ser de 4 dígitos", "error");
@@ -272,14 +287,29 @@
                             </form>
                         </div>
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-h-[300px] overflow-y-auto">
-                            <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Personal Activo</h3>
+                            <h3 className="font-black text-xs mb-4 text-slate-400 uppercase tracking-widest">Personal Activo y PINs</h3>
                             {employees.map(e => (
                                 <div key={e.id} className="flex justify-between items-center p-2 border-b border-slate-50">
-                                    <span className="font-bold text-slate-700 text-sm uppercase">{e.name}</span>
+                                    <div>
+                                        <span className="font-bold text-slate-700 text-sm uppercase block">{e.name}</span>
+                                        <span className="text-[10px] text-emerald-600 font-mono font-bold tracking-widest">PIN: {e.pin}</span>
+                                    </div>
                                     <button onClick={() => confirm('¿Eliminar?') && db.collection('employees').doc(e.id).delete()} className="text-slate-300 hover:text-rose-500 font-bold p-1">✕</button>
                                 </div>
                             ))}
                         </div>
+                    </div>
+
+                    {/* TARJETAS DE TOTAL DE HORAS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {Object.values(stats).map(s => (
+                            <div key={s.name} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.name}</span>
+                                <div className="text-2xl font-black text-slate-800">
+                                    {(s.totalMs / 3600000).toFixed(1)} <span className="text-sm text-slate-400 font-normal">hrs</span>
+                                </div>
+                            </div>
+                        ))}
                     </div>
 
                     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
@@ -287,7 +317,7 @@
                             <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white p-2 rounded-xl text-xs font-bold outline-none border border-slate-700">
                                 {weeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
                             </select>
-                            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Historial Semanal</span>
+                            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Historial Detallado</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
@@ -309,7 +339,9 @@
                                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${l.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{l.type}</span>
                                             </td>
                                             <td className="p-4 font-mono">{l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                                            <td className="p-4"><button onClick={() => db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500">✕</button></td>
+                                            <td className="p-4 text-right">
+                                                <button onClick={() => db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500 px-4">✕</button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -325,5 +357,3 @@
     </script>
 </body>
 </html>
-
-
