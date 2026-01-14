@@ -3,15 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reloj Checador Pro - Escarola</title>
-    
-    <!-- Configuración de Icono de App -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Escarola">
-    <link rel="apple-touch-icon" href="Logos_escarola_negro.png">
-    <link rel="icon" type="image/png" href="Logos_escarola_negro.png">
-
+    <title>Reloj Checador Pro</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -19,7 +11,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
@@ -33,6 +24,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
+        // CONFIGURACIÓN FIREBASE
         const firebaseConfig = {
   apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
   authDomain: "checador-escarola.firebaseapp.com",
@@ -43,7 +35,6 @@
 };
 
         const ADMIN_PASSWORD = '1391';
-        const LOGO_URL = "Logos_escarola_negro.png";
 
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -88,23 +79,20 @@
                 }
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">CARGANDO SISTEMA...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400 italic">CARGANDO SISTEMA...</div>;
 
             return (
                 <div className="min-h-screen flex flex-col">
                     <nav className="bg-white shadow-sm p-4 flex justify-between items-center px-8 border-b border-slate-200">
-                        <div className="flex items-center gap-4">
-                            <img src={LOGO_URL} alt="Escarola" className="h-10 w-auto" />
-                            <h1 className="font-black text-xl tracking-tighter text-slate-800">RELOJ <span className="text-green-600">ESCAROLA</span></h1>
-                        </div>
-                        <button onClick={handleAdminAccess} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold text-sm">
-                            {view === 'admin' ? 'VOLVER' : 'ADMIN'}
+                        <h1 className="font-black text-xl tracking-tighter text-slate-800">RELOJ <span className="text-indigo-600">PRO</span></h1>
+                        <button onClick={handleAdminAccess} className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-700 transition-colors">
+                            {view === 'admin' ? 'VOLVER AL RELOJ' : 'ADMINISTRACIÓN'}
                         </button>
                     </nav>
 
                     <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
                         {view === 'reloj' ? (
-                            <RelojVista employees={employees} db={db} logo={LOGO_URL} />
+                            <RelojVista employees={employees} db={db} />
                         ) : (
                             <AdminVista employees={employees} logs={logs} db={db} />
                         )}
@@ -113,7 +101,7 @@
             );
         }
 
-        function RelojVista({ employees, db, logo }) {
+        function RelojVista({ employees, db }) {
             const [selected, setSelected] = useState(null);
             const [pin, setPin] = useState('');
             const [msg, setMsg] = useState(null);
@@ -130,30 +118,38 @@
                     type,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                setMsg({ type: 'success', text: `${type === 'IN' ? 'ENTRADA' : 'SALIDA'} EXITOSA` });
+                setMsg({ type: 'success', text: `REGISTRO DE ${type === 'IN' ? 'ENTRADA' : 'SALIDA'} EXITOSO` });
                 setTimeout(() => { setSelected(null); setPin(''); setMsg(null); }, 2000);
             };
 
             if (selected) return (
                 <div className="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-xl animate-fadeIn text-center border border-slate-100">
-                    <h2 className="text-2xl font-black mb-2 uppercase">{selected.name}</h2>
-                    <p className="text-slate-400 font-bold text-xs mb-6">INGRESA TU PIN</p>
-                    <input type="password" value={pin} onChange={e => setPin(e.target.value)} className="w-full text-center text-4xl p-4 bg-slate-50 rounded-2xl mb-6 pin-input outline-none border-2 border-transparent focus:border-green-500" maxLength={4} autoFocus />
+                    <h2 className="text-2xl font-black mb-2 uppercase text-slate-800">{selected.name}</h2>
+                    <p className="text-slate-400 font-bold text-xs mb-6 tracking-widest">INGRESA TU PIN DE SEGURIDAD</p>
+                    <input 
+                        type="password" 
+                        value={pin} 
+                        onChange={e => setPin(e.target.value)} 
+                        className="w-full text-center text-4xl p-4 bg-slate-50 rounded-2xl mb-6 pin-input outline-none border-2 border-transparent focus:border-indigo-500 transition-all font-mono" 
+                        maxLength={4} 
+                        autoFocus 
+                    />
                     <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => handleAction('IN')} className="bg-green-600 text-white p-5 rounded-2xl font-black text-lg">ENTRADA</button>
-                        <button onClick={() => handleAction('OUT')} className="bg-red-600 text-white p-5 rounded-2xl font-black text-lg">SALIDA</button>
+                        <button onClick={() => handleAction('IN')} className="bg-emerald-500 hover:bg-emerald-600 text-white p-5 rounded-2xl font-black text-lg shadow-lg shadow-emerald-100 transition-all">ENTRADA</button>
+                        <button onClick={() => handleAction('OUT')} className="bg-rose-500 hover:bg-rose-600 text-white p-5 rounded-2xl font-black text-lg shadow-lg shadow-rose-100 transition-all">SALIDA</button>
                     </div>
-                    <button onClick={() => setSelected(null)} className="mt-8 text-slate-300 font-bold text-sm">CANCELAR</button>
-                    {msg && <div className={`mt-4 p-4 rounded-xl font-black ${msg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{msg.text}</div>}
+                    <button onClick={() => setSelected(null)} className="mt-8 text-slate-300 hover:text-slate-500 font-bold text-sm transition-colors">CANCELAR OPERACIÓN</button>
+                    {msg && <div className={`mt-4 p-4 rounded-xl font-black animate-bounce ${msg.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{msg.text}</div>}
                 </div>
             );
 
             return (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {employees.map(e => (
-                        <button key={e.id} onClick={() => setSelected(e)} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-green-500 transition-all text-center">
-                            <div className="text-3xl mb-2 text-slate-200">👤</div>
+                        <button key={e.id} onClick={() => setSelected(e)} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-500 hover:shadow-md transition-all text-center group">
+                            <div className="text-3xl mb-2 grayscale group-hover:grayscale-0 transition-all">👤</div>
                             <div className="font-black text-slate-800 uppercase text-sm truncate">{e.name}</div>
+                            <div className="text-[10px] font-bold text-slate-300 mt-1 uppercase tracking-tighter">Tocar para marcar</div>
                         </button>
                     ))}
                 </div>
@@ -168,10 +164,11 @@
 
             const addEmployee = async (e) => {
                 e.preventDefault();
+                if(!newName || !newPin || !newRate) return;
                 await db.collection('employees').add({ 
                     name: newName.toUpperCase(), 
                     pin: newPin, 
-                    hourlyRate: parseFloat(newRate) || 0 
+                    hourlyRate: parseFloat(newRate) 
                 });
                 setNewName(''); setNewPin(''); setNewRate('');
             };
@@ -179,24 +176,28 @@
             const calculateReport = () => {
                 const report = {};
                 employees.forEach(e => {
-                    const empLogs = logs.filter(l => l.employeeId === e.id).sort((a, b) => a.dateObj - b.dateObj);
+                    const empLogs = logs
+                        .filter(l => l.employeeId === e.id)
+                        .sort((a, b) => a.dateObj - b.dateObj);
+                    
                     let totalMs = 0;
                     let lastIn = null;
                     
                     empLogs.forEach(l => {
-                        if (l.type === 'IN') lastIn = l.dateObj;
-                        else if (l.type === 'OUT' && lastIn) {
+                        if (l.type === 'IN') {
+                            lastIn = l.dateObj;
+                        } else if (l.type === 'OUT' && lastIn) {
                             totalMs += (l.dateObj - lastIn);
                             lastIn = null;
                         }
                     });
 
-                    const hours = totalMs / (1000 * 60 * 60);
+                    const totalHours = totalMs / (1000 * 60 * 60);
                     report[e.id] = {
                         name: e.name,
-                        hours: hours.toFixed(2),
+                        hours: totalHours.toFixed(2),
                         rate: e.hourlyRate || 0,
-                        total: (hours * (e.hourlyRate || 0)).toFixed(2)
+                        total: (totalHours * (e.hourlyRate || 0)).toFixed(2)
                     };
                 });
                 return report;
@@ -204,53 +205,59 @@
 
             const exportToCSV = () => {
                 const data = calculateReport();
-                let csv = "Empleado,Horas,Sueldo p/h,Total\n";
+                let csv = "\uFEFF"; // BOM para Excel
+                csv += "Empleado,Horas Trabajadas,Sueldo por Hora,Total a Pagar\n";
                 Object.values(data).forEach(r => {
-                    csv += `${r.name},${r.hours},${r.rate},${r.total}\n`;
+                    csv += `"${r.name}",${r.hours},${r.rate},${r.total}\n`;
                 });
-                const blob = new Blob([csv], { type: 'text/csv' });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.setAttribute('hidden', '');
-                a.setAttribute('href', url);
-                a.setAttribute('download', `Reporte_Escarola_${new Date().toLocaleDateString()}.csv`);
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `Nomina_${new Date().toLocaleDateString().replace(/\//g,'-')}.csv`;
                 document.body.appendChild(a);
                 a.click();
-                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
             };
 
             const reportData = calculateReport();
 
             return (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="flex border-b border-slate-100">
-                        <button onClick={() => setTab('reporte')} className={`flex-1 p-4 font-black text-sm ${tab === 'reporte' ? 'text-green-600 border-b-2 border-green-600' : 'text-slate-300'}`}>REPORTE CONTABLE</button>
-                        <button onClick={() => setTab('personal')} className={`flex-1 p-4 font-black text-sm ${tab === 'personal' ? 'text-green-600 border-b-2 border-green-600' : 'text-slate-300'}`}>GESTIÓN PERSONAL</button>
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden animate-fadeIn">
+                    <div className="flex border-b border-slate-100 bg-slate-50/50">
+                        <button onClick={() => setTab('reporte')} className={`flex-1 p-4 font-black text-xs tracking-widest ${tab === 'reporte' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white' : 'text-slate-400 hover:text-slate-600'}`}>REPORTE DE NÓMINA</button>
+                        <button onClick={() => setTab('personal')} className={`flex-1 p-4 font-black text-xs tracking-widest ${tab === 'personal' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-white' : 'text-slate-400 hover:text-slate-600'}`}>GESTIÓN DE PERSONAL</button>
                     </div>
 
                     {tab === 'reporte' ? (
                         <div className="p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-black text-slate-800">RESUMEN DE NÓMINA</h3>
-                                <button onClick={exportToCSV} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-xs">EXPORTAR EXCEL</button>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                                <div>
+                                    <h3 className="font-black text-slate-800 text-lg uppercase">Resumen Contable</h3>
+                                    <p className="text-slate-400 text-xs font-bold">CÁLCULO AUTOMÁTICO BASADO EN REGISTROS</p>
+                                </div>
+                                <button onClick={exportToCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-black text-xs shadow-lg shadow-emerald-100 transition-all flex items-center gap-2">
+                                    📥 EXPORTAR A EXCEL (CSV)
+                                </button>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="text-[10px] font-black text-slate-400 border-b uppercase">
-                                            <th className="p-4">Empleado</th>
-                                            <th className="p-4 text-center">Horas Totales</th>
-                                            <th className="p-4 text-center">Sueldo p/h</th>
-                                            <th className="p-4 text-right">Total a Pagar</th>
+                                        <tr className="text-[10px] font-black text-slate-400 border-b border-slate-100 uppercase tracking-tighter">
+                                            <th className="p-4">Nombre del Empleado</th>
+                                            <th className="p-4 text-center">Horas Acumuladas</th>
+                                            <th className="p-4 text-center">Cuota x Hora</th>
+                                            <th className="p-4 text-right">Subtotal Nómina</th>
                                         </tr>
                                     </thead>
                                     <tbody className="text-sm font-bold text-slate-600">
                                         {Object.values(reportData).map((r, i) => (
-                                            <tr key={i} className="border-b border-slate-50">
-                                                <td className="p-4 uppercase">{r.name}</td>
-                                                <td className="p-4 text-center">{r.hours}h</td>
-                                                <td className="p-4 text-center">${r.rate}</td>
-                                                <td className="p-4 text-right text-green-700">${r.total}</td>
+                                            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                                <td className="p-4 uppercase text-slate-800">{r.name}</td>
+                                                <td className="p-4 text-center font-mono text-indigo-500">{r.hours}h</td>
+                                                <td className="p-4 text-center text-slate-400">${r.rate}</td>
+                                                <td className="p-4 text-right text-emerald-600 font-black">${r.total}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -258,27 +265,42 @@
                             </div>
                         </div>
                     ) : (
-                        <div className="p-6 grid md:grid-cols-2 gap-8">
+                        <div className="p-6 grid md:grid-cols-2 gap-12">
                             <form onSubmit={addEmployee} className="space-y-4">
-                                <h3 className="font-black text-slate-800 text-sm mb-4 border-l-4 border-green-500 pl-3 uppercase">Alta de Empleado</h3>
-                                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="NOMBRE COMPLETO" className="w-full p-3 bg-slate-50 rounded-xl outline-none font-bold uppercase border border-slate-200" required />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <input value={newPin} onChange={e => setNewPin(e.target.value)} placeholder="PIN (4)" className="w-full p-3 bg-slate-50 rounded-xl outline-none font-bold border border-slate-200 text-center" maxLength={4} required />
-                                    <input value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="PAGO X HORA" type="number" step="0.01" className="w-full p-3 bg-slate-50 rounded-xl outline-none font-bold border border-slate-200 text-center" required />
+                                <h3 className="font-black text-slate-800 text-sm mb-6 border-l-4 border-indigo-500 pl-3 uppercase tracking-tight">Agregar Nuevo Personal</h3>
+                                <div className="space-y-4">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase">Nombre Completo</label>
+                                    <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="EJ: JUAN PÉREZ" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold uppercase border border-slate-100 focus:border-indigo-300 transition-all" required />
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Pin Acceso (4 Dígitos)</label>
+                                            <input value={newPin} onChange={e => setNewPin(e.target.value)} placeholder="0000" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 text-center focus:border-indigo-300 transition-all" maxLength={4} required />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Sueldo por Hora</label>
+                                            <input value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="0.00" type="number" step="0.01" className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 text-center focus:border-indigo-300 transition-all" required />
+                                        </div>
+                                    </div>
                                 </div>
-                                <button className="w-full bg-slate-900 text-white p-4 rounded-xl font-black text-sm">REGISTRAR</button>
+                                <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-5 rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 transition-all mt-4">GUARDAR EMPLEADO</button>
                             </form>
 
-                            <div className="space-y-4">
-                                <h3 className="font-black text-slate-800 text-sm mb-4 border-l-4 border-slate-300 pl-3 uppercase">Lista de Personal</h3>
-                                <div className="divide-y border border-slate-100 rounded-2xl overflow-hidden">
+                            <div>
+                                <h3 className="font-black text-slate-800 text-sm mb-6 border-l-4 border-slate-200 pl-3 uppercase tracking-tight">Personal Registrado</h3>
+                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                     {employees.map(e => (
-                                        <div key={e.id} className="p-4 flex justify-between items-center bg-slate-50/50">
+                                        <div key={e.id} className="p-4 flex justify-between items-center bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-md transition-all group">
                                             <div>
-                                                <div className="font-black text-slate-700 uppercase text-xs">{e.name}</div>
-                                                <div className="text-[10px] text-slate-400 font-bold">PIN: {e.pin} | RATE: ${e.hourlyRate}</div>
+                                                <div className="font-black text-slate-800 uppercase text-xs">{e.name}</div>
+                                                <div className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-widest">PIN: {e.pin} | TARIFA: ${e.hourlyRate}/h</div>
                                             </div>
-                                            <button onClick={() => db.collection('employees').doc(e.id).delete()} className="text-red-300 hover:text-red-500 font-black">✕</button>
+                                            <button 
+                                                onClick={() => { if(confirm(`¿ELIMINAR A ${e.name}?`)) db.collection('employees').doc(e.id).delete() }} 
+                                                className="text-slate-300 hover:text-rose-500 p-2 transition-colors font-black"
+                                            >
+                                                ✕
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
