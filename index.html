@@ -6,7 +6,7 @@
     <title>Reloj Checador Pro</title>
     
     <!-- CONFIGURACIÓN PARA APP (PWA) -->
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#3d441e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
@@ -29,10 +29,45 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        olive: {
+                            50: '#f7f8f2',
+                            100: '#ecefe1',
+                            200: '#d5dbbc',
+                            300: '#b8c18e',
+                            400: '#9aa563',
+                            500: '#7d8a41', // Verde Olivo Base
+                            600: '#626d33',
+                            700: '#4b5329',
+                            800: '#3d441e',
+                            900: '#343a1c',
+                        },
+                        terracotta: {
+                            50: '#fef5f2',
+                            100: '#fde9e2',
+                            200: '#fbd4c9',
+                            300: '#f7b4a2',
+                            400: '#f0896f',
+                            500: '#e2725b', // Terracota Base
+                            600: '#cc5a42',
+                            700: '#a14232',
+                            800: '#83392c',
+                            900: '#6e3328',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
         body { 
             font-family: 'Quicksand', sans-serif; 
-            background-color: #f8fafc; 
+            background-color: #fcfcf9; 
             overflow-x: hidden; 
             letter-spacing: -0.01em;
         }
@@ -50,17 +85,17 @@
 
         .key-btn {
             background: white;
-            border: 1px solid #f1f5f9;
+            border: 1px solid #f1f2eb;
             font-size: 1.6rem;
             font-weight: 700;
             padding: 1.4rem;
             border-radius: 2rem;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
             transition: all 0.2s;
-            color: #1e293b;
+            color: #3d441e;
         }
         .key-btn:active {
-            background: #f1f5f9;
+            background: #f1f2eb;
             transform: scale(0.9);
             box-shadow: none;
         }
@@ -87,13 +122,13 @@
         const CLAVE_ADMIN = '1391'; 
 
         const firebaseConfig = {
-  apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
-  authDomain: "checador-escarola.firebaseapp.com",
-  projectId: "checador-escarola",
-  storageBucket: "checador-escarola.firebasestorage.app",
-  messagingSenderId: "836776118383",
-  appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
-};
+            apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
+            authDomain: "checador-escarola.firebaseapp.com",
+            projectId: "checador-escarola",
+            storageBucket: "checador-escarola.firebasestorage.app",
+            messagingSenderId: "836776118383",
+            appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
+        };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
@@ -137,8 +172,8 @@
             };
 
             if (loading) return (
-                <div className="h-screen flex flex-col items-center justify-center text-slate-400 font-bold bg-slate-50">
-                    <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <div className="h-screen flex flex-col items-center justify-center text-olive-300 font-bold bg-olive-50">
+                    <div className="w-10 h-10 border-4 border-olive-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <span className="tracking-widest uppercase text-xs">Cargando Sistema...</span>
                 </div>
             );
@@ -147,23 +182,23 @@
                 <div className="min-h-screen pb-10 relative">
                     {notification && (
                         <div className={`fixed left-1/2 top-0 z-[100] px-8 py-5 rounded-full shadow-2xl border flex items-center gap-4 animate-notification min-w-[320px] ${
-                            notification.type === 'success' ? 'bg-white border-emerald-100 text-emerald-800' : 'bg-white border-rose-100 text-rose-800'
+                            notification.type === 'success' ? 'bg-white border-olive-100 text-olive-800' : 'bg-white border-terracotta-100 text-terracotta-800'
                         }`}>
-                            <span className="text-2xl">{notification.type === 'success' ? '✨' : '⚠️'}</span>
+                            <span className="text-2xl">{notification.type === 'success' ? '🌿' : '⚠️'}</span>
                             <span className="font-bold uppercase tracking-tight text-sm">{notification.msg}</span>
                         </div>
                     )}
 
-                    <nav className="bg-slate-900 text-white px-6 py-5 flex justify-between items-center shadow-xl sticky top-0 z-50 rounded-b-[2.5rem]">
+                    <nav className="bg-olive-900 text-white px-6 py-5 flex justify-between items-center shadow-xl sticky top-0 z-50 rounded-b-[2.5rem]">
                         <div className="flex items-center gap-3">
-                            <div className="bg-emerald-500 p-2 rounded-2xl shadow-lg shadow-emerald-500/20">
+                            <div className="bg-olive-500 p-2 rounded-2xl shadow-lg shadow-olive-900/40">
                                 <span className="text-xl">⏱️</span>
                             </div>
                             <span className="font-bold uppercase tracking-tighter text-lg text-white">
-                                Reloj<span className="text-emerald-400 font-black">Checador</span>
+                                Reloj<span className="text-terracotta-400 font-black">Checador</span>
                             </span>
                         </div>
-                        <button onClick={toggleAdmin} className="bg-slate-800 hover:bg-slate-700 text-[10px] px-6 py-2.5 rounded-full border border-slate-700 font-black uppercase tracking-widest transition-all">
+                        <button onClick={toggleAdmin} className="bg-olive-800 hover:bg-olive-700 text-[10px] px-6 py-2.5 rounded-full border border-olive-700 font-black uppercase tracking-widest transition-all">
                             {view === 'admin' ? 'SALIR' : 'ADMIN'}
                         </button>
                     </nav>
@@ -199,7 +234,6 @@
                     return;
                 }
                 
-                // Validación de estado actual
                 const estadoActual = getUltimoEstado(sel.id);
                 if (tipo === estadoActual) {
                     showNotify(`YA HAS MARCADO TU ${tipo === 'IN' ? 'ENTRADA' : 'SALIDA'}`, "error");
@@ -225,17 +259,17 @@
 
                 return (
                     <div className="max-w-md mx-auto mt-6 animate-fadeIn">
-                        <div className="bg-white p-8 rounded-extra shadow-2xl border border-slate-100 text-center">
-                            <h2 className="text-3xl font-bold text-slate-800 mb-1 uppercase tracking-tight truncate">{sel.name}</h2>
-                            <p className="text-slate-400 text-xs font-bold mb-8 uppercase tracking-widest">
-                                Estado Actual: <span className={estadoActual === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>
+                        <div className="bg-white p-8 rounded-extra shadow-2xl border border-olive-50 text-center">
+                            <h2 className="text-3xl font-bold text-olive-900 mb-1 uppercase tracking-tight truncate">{sel.name}</h2>
+                            <p className="text-olive-400 text-xs font-bold mb-8 uppercase tracking-widest">
+                                Estado Actual: <span className={estadoActual === 'IN' ? 'text-olive-600' : 'text-terracotta-500'}>
                                     {estadoActual === 'IN' ? '• DENTRO' : '• FUERA'}
                                 </span>
                             </p>
                             
                             <div className="flex justify-center gap-4 mb-8">
                                 {[...Array(4)].map((_, i) => (
-                                    <div key={i} className={`w-14 h-16 border-2 rounded-[1.5rem] flex items-center justify-center text-3xl font-black transition-all ${pin[i] ? 'border-emerald-400 bg-emerald-50 text-emerald-600 scale-105' : 'border-slate-100 text-slate-200'}`}>
+                                    <div key={i} className={`w-14 h-16 border-2 rounded-[1.5rem] flex items-center justify-center text-3xl font-black transition-all ${pin[i] ? 'border-olive-400 bg-olive-50 text-olive-600 scale-105' : 'border-olive-50 text-olive-100'}`}>
                                         {pin[i] ? '•' : ''}
                                     </div>
                                 ))}
@@ -245,32 +279,32 @@
                                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
                                     <button key={n} onClick={() => pressKey(n)} className="key-btn">{n}</button>
                                 ))}
-                                <button onClick={clearPin} className="key-btn text-rose-500 text-xs">C</button>
+                                <button onClick={clearPin} className="key-btn text-terracotta-500 text-xs">C</button>
                                 <button onClick={() => pressKey(0)} className="key-btn">0</button>
-                                <button onClick={deleteLast} className="key-btn text-slate-400 text-xl">⌫</button>
+                                <button onClick={deleteLast} className="key-btn text-olive-300 text-xl">⌫</button>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <button 
                                     onClick={() => checar('IN')} 
                                     disabled={pin.length < 4 || !canCheckIn} 
-                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckIn ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed'}`}
+                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckIn ? 'bg-olive-600 text-white' : 'bg-olive-50 text-olive-200 opacity-50 cursor-not-allowed'}`}
                                 >
                                     ENTRADA
                                 </button>
                                 <button 
                                     onClick={() => checar('OUT')} 
                                     disabled={pin.length < 4 || !canCheckOut} 
-                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckOut ? 'bg-rose-600 text-white' : 'bg-slate-50 text-slate-300 opacity-50 cursor-not-allowed'}`}
+                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckOut ? 'bg-terracotta-600 text-white' : 'bg-terracotta-50 text-terracotta-200 opacity-50 cursor-not-allowed'}`}
                                 >
                                     SALIDA
                                 </button>
                             </div>
                             
-                            {pin.length === 4 && !canCheckIn && estadoActual === 'IN' && <p className="mt-4 text-[9px] text-rose-400 font-bold uppercase tracking-wider">Debes marcar Salida primero</p>}
-                            {pin.length === 4 && !canCheckOut && estadoActual === 'OUT' && <p className="mt-4 text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Debes marcar Entrada primero</p>}
+                            {pin.length === 4 && !canCheckIn && estadoActual === 'IN' && <p className="mt-4 text-[9px] text-terracotta-400 font-bold uppercase tracking-wider">Debes marcar Salida primero</p>}
+                            {pin.length === 4 && !canCheckOut && estadoActual === 'OUT' && <p className="mt-4 text-[9px] text-olive-400 font-bold uppercase tracking-wider">Debes marcar Entrada primero</p>}
 
-                            <button onClick={() => setSel(null)} className="mt-8 text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] hover:text-slate-600">✕ Cancelar</button>
+                            <button onClick={() => setSel(null)} className="mt-8 text-olive-300 font-bold uppercase text-[10px] tracking-[0.2em] hover:text-olive-600">✕ Cancelar</button>
                         </div>
                     </div>
                 );
@@ -279,12 +313,12 @@
             return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 animate-fadeIn">
                     {employees.map(e => (
-                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-7 rounded-extra shadow-sm border-b-[6px] border-slate-200 hover:border-emerald-500 hover:shadow-xl hover:-translate-y-1 transition-all btn-press text-left group">
+                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-7 rounded-extra shadow-sm border-b-[6px] border-olive-100 hover:border-olive-500 hover:shadow-xl hover:-translate-y-1 transition-all btn-press text-left group">
                             <div className="flex justify-between items-start mb-3">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Colaborador</span>
-                                <div className={`w-3 h-3 rounded-full ${getUltimoEstado(e.id) === 'IN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-200'}`}></div>
+                                <span className="text-[10px] text-olive-300 font-bold uppercase tracking-widest">Colaborador</span>
+                                <div className={`w-3 h-3 rounded-full ${getUltimoEstado(e.id) === 'IN' ? 'bg-olive-500 animate-pulse' : 'bg-olive-100'}`}></div>
                             </div>
-                            <div className="text-xl font-bold text-slate-800 uppercase tracking-tight truncate group-hover:text-emerald-700">{e.name}</div>
+                            <div className="text-xl font-bold text-olive-900 uppercase tracking-tight truncate group-hover:text-olive-700">{e.name}</div>
                         </button>
                     ))}
                 </div>
@@ -368,26 +402,26 @@
             return (
                 <div className="space-y-8 mt-6 animate-fadeIn pb-20">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-white p-8 rounded-extra shadow-sm border border-slate-100">
-                            <h3 className="font-bold text-xs mb-6 text-slate-400 uppercase tracking-widest">Nuevo Personal</h3>
+                        <div className="bg-white p-8 rounded-extra shadow-sm border border-olive-50">
+                            <h3 className="font-bold text-xs mb-6 text-olive-400 uppercase tracking-widest">Nuevo Personal</h3>
                             <form onSubmit={add} className="space-y-4">
-                                <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500 font-medium" required />
+                                <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre" className="w-full p-4 bg-olive-50/50 border border-olive-100 rounded-2xl outline-none focus:ring-2 focus:ring-olive-500 font-medium" required />
                                 <div className="grid grid-cols-2 gap-4">
-                                    <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-medium" maxLength={4} required />
-                                    <input value={s} onChange={e => setS(e.target.value)} placeholder="Sueldo/Hr" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-medium" type="number" step="0.01" required />
+                                    <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" className="w-full p-4 bg-olive-50/50 border border-olive-100 rounded-2xl outline-none font-medium" maxLength={4} required />
+                                    <input value={s} onChange={e => setS(e.target.value)} placeholder="Sueldo/Hr" className="w-full p-4 bg-olive-50/50 border border-olive-100 rounded-2xl outline-none font-medium" type="number" step="0.01" required />
                                 </div>
-                                <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold uppercase text-xs tracking-[0.2em] hover:bg-black">Registrar</button>
+                                <button className="w-full bg-olive-900 text-white p-4 rounded-2xl font-bold uppercase text-xs tracking-[0.2em] hover:bg-black">Registrar</button>
                             </form>
                         </div>
-                        <div className="bg-white p-8 rounded-extra shadow-sm border border-slate-100 max-h-[350px] overflow-y-auto">
-                            <h3 className="font-bold text-xs mb-6 text-slate-400 uppercase tracking-widest">Personal Activo</h3>
+                        <div className="bg-white p-8 rounded-extra shadow-sm border border-olive-50 max-h-[350px] overflow-y-auto">
+                            <h3 className="font-bold text-xs mb-6 text-olive-400 uppercase tracking-widest">Personal Activo</h3>
                             {employees.map(e => (
-                                <div key={e.id} className="flex justify-between items-center p-4 mb-2 bg-slate-50/50 rounded-2xl">
+                                <div key={e.id} className="flex justify-between items-center p-4 mb-2 bg-olive-50/30 rounded-2xl">
                                     <div>
-                                        <span className="font-bold text-slate-700 text-sm uppercase block tracking-tight">{e.name}</span>
-                                        <span className="text-[10px] text-slate-400 font-bold">PIN: {e.pin} | ${e.rate}/hr</span>
+                                        <span className="font-bold text-olive-800 text-sm uppercase block tracking-tight">{e.name}</span>
+                                        <span className="text-[10px] text-olive-400 font-bold">PIN: {e.pin} | ${e.rate}/hr</span>
                                     </div>
-                                    <button onClick={() => confirm('¿Eliminar?') && db.collection('employees').doc(e.id).delete()} className="text-slate-300 hover:text-rose-500 font-bold p-2">✕</button>
+                                    <button onClick={() => confirm('¿Eliminar?') && db.collection('employees').doc(e.id).delete()} className="text-olive-200 hover:text-terracotta-500 font-bold p-2 transition-colors">✕</button>
                                 </div>
                             ))}
                         </div>
@@ -395,31 +429,31 @@
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {Object.values(stats).map(s => (
-                            <div key={s.name} className="bg-white p-6 rounded-extra border border-slate-50 shadow-sm group">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-3">{s.name}</span>
+                            <div key={s.name} className="bg-white p-6 rounded-extra border border-olive-50 shadow-sm group">
+                                <span className="text-[10px] font-bold text-olive-400 uppercase tracking-widest block mb-3">{s.name}</span>
                                 <div className="flex justify-between items-end">
-                                    <div className="text-2xl font-bold text-slate-800 tracking-tight">{(s.totalMs / 3600000).toFixed(1)} <span className="text-xs text-slate-300">hrs</span></div>
-                                    <div className="text-2xl font-bold text-emerald-600 tracking-tight">${((s.totalMs / 3600000) * s.rate).toLocaleString('es-MX')}</div>
+                                    <div className="text-2xl font-bold text-olive-900 tracking-tight">{(s.totalMs / 3600000).toFixed(1)} <span className="text-xs text-olive-200">hrs</span></div>
+                                    <div className="text-2xl font-bold text-olive-600 tracking-tight">${((s.totalMs / 3600000) * s.rate).toLocaleString('es-MX')}</div>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    <div className="bg-white rounded-extra shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="p-6 bg-slate-900 flex flex-wrap justify-between items-center gap-4">
+                    <div className="bg-white rounded-extra shadow-sm border border-olive-50 overflow-hidden">
+                        <div className="p-6 bg-olive-900 flex flex-wrap justify-between items-center gap-4">
                             <div className="flex items-center gap-4">
-                                <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white px-6 py-3 rounded-full text-xs font-bold outline-none border border-slate-700 cursor-pointer">
+                                <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-olive-800 text-white px-6 py-3 rounded-full text-xs font-bold outline-none border border-olive-700 cursor-pointer">
                                     {weeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
                                 </select>
-                                <button onClick={exportToExcel} className="bg-emerald-600 text-white px-6 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-500 transition-all">
+                                <button onClick={exportToExcel} className="bg-olive-500 text-white px-6 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-olive-400 transition-all">
                                     Exportar Excel
                                 </button>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Bitácora Semanal (Lun - Dom)</span>
+                            <span className="text-[10px] text-olive-300 font-bold uppercase tracking-[0.2em]">Bitácora Semanal (Lun - Dom)</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
-                                <thead className="bg-slate-50 text-slate-400 font-bold uppercase">
+                                <thead className="bg-olive-50/50 text-olive-400 font-bold uppercase">
                                     <tr>
                                         <th className="p-5">Fecha</th>
                                         <th className="p-5">Empleado</th>
@@ -430,15 +464,15 @@
                                 </thead>
                                 <tbody>
                                     {filteredLogs.map(l => (
-                                        <tr key={l.id} className="border-t border-slate-50 hover:bg-slate-50/50 transition-colors">
-                                            <td className="p-5 font-bold text-slate-600">{l.dateObj.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'2-digit'})}</td>
-                                            <td className="p-5 font-bold text-slate-800 uppercase">{l.employeeName}</td>
+                                        <tr key={l.id} className="border-t border-olive-50 hover:bg-olive-50/20 transition-colors">
+                                            <td className="p-5 font-bold text-olive-700">{l.dateObj.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'2-digit'})}</td>
+                                            <td className="p-5 font-bold text-olive-900 uppercase">{l.employeeName}</td>
                                             <td className="p-5">
-                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold ${l.type === 'IN' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>{l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}</span>
+                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold ${l.type === 'IN' ? 'bg-olive-50 text-olive-600 border border-olive-100' : 'bg-terracotta-50 text-terracotta-600 border border-terracotta-100'}`}>{l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}</span>
                                             </td>
-                                            <td className="p-5 font-semibold text-slate-500">{l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                                            <td className="p-5 font-semibold text-olive-500">{l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                                             <td className="p-5 text-right">
-                                                <button onClick={() => confirm('¿Borrar?') && db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500 px-4 transition-colors">✕</button>
+                                                <button onClick={() => confirm('¿Borrar?') && db.collection('time_logs').doc(l.id).delete()} className="text-olive-100 hover:text-terracotta-500 px-4 transition-colors">✕</button>
                                             </td>
                                         </tr>
                                     ))}
