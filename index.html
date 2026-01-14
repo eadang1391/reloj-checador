@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reloj Checador Pro</title>
+    <title>Reloj Checador Pro - Nómina</title>
     
     <!-- CONFIGURACIÓN PARA APP (PWA) -->
     <meta name="theme-color" content="#3d441e">
@@ -17,7 +17,6 @@
 
     <!-- ICONO DINÁMICO -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏱️</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏱️</text></svg>">
 
     <!-- LIBRERÍAS EXTERNAS -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -35,28 +34,12 @@
                 extend: {
                     colors: {
                         olive: {
-                            50: '#f7f8f2',
-                            100: '#ecefe1',
-                            200: '#d5dbbc',
-                            300: '#b8c18e',
-                            400: '#9aa563',
-                            500: '#7d8a41', // Verde Olivo Base
-                            600: '#626d33',
-                            700: '#4b5329',
-                            800: '#3d441e',
-                            900: '#343a1c',
+                            50: '#f7f8f2', 100: '#ecefe1', 200: '#d5dbbc', 300: '#b8c18e', 400: '#9aa563',
+                            500: '#7d8a41', 600: '#626d33', 700: '#4b5329', 800: '#3d441e', 900: '#343a1c',
                         },
                         terracotta: {
-                            50: '#fef5f2',
-                            100: '#fde9e2',
-                            200: '#fbd4c9',
-                            300: '#f7b4a2',
-                            400: '#f0896f',
-                            500: '#e2725b', // Terracota Base
-                            600: '#cc5a42',
-                            700: '#a14232',
-                            800: '#83392c',
-                            900: '#6e3328',
+                            50: '#fef5f2', 100: '#fde9e2', 200: '#fbd4c9', 300: '#f7b4a2', 400: '#f0896f',
+                            500: '#e2725b', 600: '#cc5a42', 700: '#a14232', 800: '#83392c', 900: '#6e3328',
                         }
                     }
                 }
@@ -65,12 +48,7 @@
     </script>
 
     <style>
-        body { 
-            font-family: 'Quicksand', sans-serif; 
-            background-color: #fcfcf9; 
-            overflow-x: hidden; 
-            letter-spacing: -0.01em;
-        }
+        body { font-family: 'Quicksand', sans-serif; background-color: #fcfcf9; overflow-x: hidden; letter-spacing: -0.01em; }
         .btn-press:active { transform: scale(0.92); opacity: 0.8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1); }
@@ -79,37 +57,19 @@
             from { transform: translate(-50%, -100%); opacity: 0; }
             to { transform: translate(-50%, 20px); opacity: 1; }
         }
-        .animate-notification {
-            animation: slideInDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
+        .animate-notification { animation: slideInDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
         .key-btn {
-            background: white;
-            border: 1px solid #f1f2eb;
-            font-size: 1.6rem;
-            font-weight: 700;
-            padding: 1.4rem;
-            border-radius: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            transition: all 0.2s;
-            color: #3d441e;
+            background: white; border: 1px solid #f1f2eb; font-size: 1.6rem; font-weight: 700;
+            padding: 1.4rem; border-radius: 2rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            transition: all 0.2s; color: #3d441e;
         }
-        .key-btn:active {
-            background: #f1f2eb;
-            transform: scale(0.9);
-            box-shadow: none;
-        }
-        
+        .key-btn:active { background: #f1f2eb; transform: scale(0.9); box-shadow: none; }
         .rounded-extra { border-radius: 2.5rem; }
-        .rounded-button { border-radius: 1.5rem; }
-
         select {
             appearance: none;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 1rem center;
-            background-size: 1em;
-            padding-right: 2.5rem;
+            background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; padding-right: 2.5rem;
         }
     </style>
 </head>
@@ -223,7 +183,7 @@
             const deleteLast = () => setPin(pin.slice(0, -1));
 
             const getUltimoEstado = (empId) => {
-                const log = logs.find(l => l.employeeId === empId);
+                const log = logs.filter(l => l.employeeId === empId && l.type !== 'PAYMENT')[0];
                 return log ? log.type : 'OUT';
             };
 
@@ -285,24 +245,9 @@
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <button 
-                                    onClick={() => checar('IN')} 
-                                    disabled={pin.length < 4 || !canCheckIn} 
-                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckIn ? 'bg-olive-600 text-white' : 'bg-olive-50 text-olive-200 opacity-50 cursor-not-allowed'}`}
-                                >
-                                    ENTRADA
-                                </button>
-                                <button 
-                                    onClick={() => checar('OUT')} 
-                                    disabled={pin.length < 4 || !canCheckOut} 
-                                    className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckOut ? 'bg-terracotta-600 text-white' : 'bg-terracotta-50 text-terracotta-200 opacity-50 cursor-not-allowed'}`}
-                                >
-                                    SALIDA
-                                </button>
+                                <button onClick={() => checar('IN')} disabled={pin.length < 4 || !canCheckIn} className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckIn ? 'bg-olive-600 text-white' : 'bg-olive-50 text-olive-200 opacity-50 cursor-not-allowed'}`}>ENTRADA</button>
+                                <button onClick={() => checar('OUT')} disabled={pin.length < 4 || !canCheckOut} className={`p-5 rounded-[2rem] font-bold btn-press text-lg shadow-xl transition-all ${pin.length === 4 && canCheckOut ? 'bg-terracotta-600 text-white' : 'bg-terracotta-50 text-terracotta-200 opacity-50 cursor-not-allowed'}`}>SALIDA</button>
                             </div>
-                            
-                            {pin.length === 4 && !canCheckIn && estadoActual === 'IN' && <p className="mt-4 text-[9px] text-terracotta-400 font-bold uppercase tracking-wider">Debes marcar Salida primero</p>}
-                            {pin.length === 4 && !canCheckOut && estadoActual === 'OUT' && <p className="mt-4 text-[9px] text-olive-400 font-bold uppercase tracking-wider">Debes marcar Entrada primero</p>}
 
                             <button onClick={() => setSel(null)} className="mt-8 text-olive-300 font-bold uppercase text-[10px] tracking-[0.2em] hover:text-olive-600">✕ Cancelar</button>
                         </div>
@@ -333,24 +278,16 @@
 
             const weeks = useMemo(() => {
                 const list = [];
-                for(let i=0; i < 52; i++) {
+                for(let i=0; i < 12; i++) {
                     const current = new Date();
                     const day = current.getDay();
                     const diff = current.getDate() - day + (day === 0 ? -6 : 1);
                     const monday = new Date(current.setDate(diff - (i * 7)));
                     monday.setHours(0,0,0,0);
-
                     const sunday = new Date(monday);
                     sunday.setDate(monday.getDate() + 6);
                     sunday.setHours(23,59,59,999);
-
-                    const label = `${monday.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} - ${sunday.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
-                    list.push({ 
-                        label, 
-                        value: monday.toISOString().split('T')[0],
-                        start: monday,
-                        end: sunday
-                    });
+                    list.push({ label: `${monday.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} - ${sunday.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`, value: monday.toISOString().split('T')[0], start: monday, end: sunday });
                 }
                 return list;
             }, []);
@@ -365,18 +302,45 @@
 
             const stats = useMemo(() => {
                 const res = {};
-                const sorted = [...filteredLogs].sort((a,b) => a.dateObj - b.dateObj);
-                employees.forEach(e => res[e.id] = { name: e.name, totalMs: 0, lastIn: null, rate: parseFloat(e.rate || 0) });
-                sorted.forEach(l => {
+                employees.forEach(e => res[e.id] = { id: e.id, name: e.name, totalMs: 0, lastIn: null, rate: parseFloat(e.rate || 0), totalPaid: 0 });
+                
+                // Calculamos acumulado histórico para pagos totales
+                [...logs].reverse().forEach(l => {
                     if (!res[l.employeeId]) return;
-                    if (l.type === 'IN') res[l.employeeId].lastIn = l.dateObj;
-                    else if (l.type === 'OUT' && res[l.employeeId].lastIn) {
+                    if (l.type === 'PAYMENT') {
+                        res[l.employeeId].totalPaid += (l.amount || 0);
+                        res[l.employeeId].lastIn = null; // Reiniciar ciclos al pagar
+                        res[l.employeeId].totalMs = 0;
+                    } else if (l.type === 'IN') {
+                        res[l.employeeId].lastIn = l.dateObj;
+                    } else if (l.type === 'OUT' && res[l.employeeId].lastIn) {
                         res[l.employeeId].totalMs += (l.dateObj - res[l.employeeId].lastIn);
                         res[l.employeeId].lastIn = null;
                     }
                 });
-                return res;
-            }, [filteredLogs, employees]);
+
+                // Re-calculamos solo para la semana visual actual si queremos ver la tabla filtrada
+                const weekRes = {};
+                employees.forEach(e => weekRes[e.id] = { ...res[e.id], totalMs: 0, lastIn: null });
+                [...filteredLogs].reverse().forEach(l => {
+                    if (!weekRes[l.employeeId]) return;
+                    if (l.type === 'IN') weekRes[l.employeeId].lastIn = l.dateObj;
+                    else if (l.type === 'OUT' && weekRes[l.employeeId].lastIn) {
+                        weekRes[l.employeeId].totalMs += (l.dateObj - weekRes[l.employeeId].lastIn);
+                        weekRes[l.employeeId].lastIn = null;
+                    }
+                });
+
+                return { global: res, weekly: weekRes };
+            }, [logs, filteredLogs, employees]);
+
+            const totalSueldosPagados = useMemo(() => {
+                return Object.values(stats.global).reduce((acc, curr) => acc + curr.totalPaid, 0);
+            }, [stats]);
+
+            const totalPorPagarSemana = useMemo(() => {
+                return Object.values(stats.weekly).reduce((acc, s) => acc + ((s.totalMs / 3600000) * s.rate), 0);
+            }, [stats]);
 
             const add = async (e) => {
                 e.preventDefault();
@@ -385,13 +349,28 @@
                 setN(''); setP(''); setS('');
             };
 
+            const registrarPago = async (emp) => {
+                const monto = ((emp.totalMs / 3600000) * emp.rate).toFixed(2);
+                if (monto <= 0) return showNotify("No hay saldo pendiente", "error");
+                
+                if (confirm(`¿Confirmar pago de $${monto} a ${emp.name}?`)) {
+                    await db.collection('time_logs').add({
+                        employeeId: emp.id,
+                        employeeName: emp.name,
+                        type: 'PAYMENT',
+                        amount: parseFloat(monto),
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    showNotify("PAGO REGISTRADO");
+                }
+            };
+
             const exportToExcel = () => {
-                if (filteredLogs.length === 0) return showNotify("No hay datos", "error");
-                const data = Object.values(stats).map(s => ({
+                const data = Object.values(stats.weekly).map(s => ({
                     Empleado: s.name,
-                    "Horas": (s.totalMs / 3600000).toFixed(2),
+                    "Horas Semana": (s.totalMs / 3600000).toFixed(2),
                     "Pago Hr": s.rate,
-                    "Total": ((s.totalMs / 3600000) * s.rate).toFixed(2)
+                    "Subtotal Semana": ((s.totalMs / 3600000) * s.rate).toFixed(2)
                 }));
                 const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
@@ -401,6 +380,22 @@
 
             return (
                 <div className="space-y-8 mt-6 animate-fadeIn pb-20">
+                    {/* DASHBOARD DE SUELDOS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-olive-900 p-8 rounded-extra shadow-xl text-white">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-olive-400">Total Histórico Pagado</span>
+                            <div className="text-4xl font-black mt-2 text-olive-100">${totalSueldosPagados.toLocaleString('es-MX')}</div>
+                            <div className="mt-4 h-1 w-full bg-olive-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-olive-500 w-2/3"></div>
+                            </div>
+                        </div>
+                        <div className="bg-white p-8 rounded-extra shadow-sm border border-olive-100">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-olive-400">Proyección Semanal (Sin pagar)</span>
+                            <div className="text-4xl font-black mt-2 text-terracotta-600">${totalPorPagarSemana.toLocaleString('es-MX')}</div>
+                            <p className="text-[10px] mt-4 text-olive-300 font-bold uppercase">Basado en horas registradas esta semana</p>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="bg-white p-8 rounded-extra shadow-sm border border-olive-50">
                             <h3 className="font-bold text-xs mb-6 text-olive-400 uppercase tracking-widest">Nuevo Personal</h3>
@@ -427,14 +422,23 @@
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {Object.values(stats).map(s => (
-                            <div key={s.name} className="bg-white p-6 rounded-extra border border-olive-50 shadow-sm group">
-                                <span className="text-[10px] font-bold text-olive-400 uppercase tracking-widest block mb-3">{s.name}</span>
-                                <div className="flex justify-between items-end">
-                                    <div className="text-2xl font-bold text-olive-900 tracking-tight">{(s.totalMs / 3600000).toFixed(1)} <span className="text-xs text-olive-200">hrs</span></div>
-                                    <div className="text-2xl font-bold text-olive-600 tracking-tight">${((s.totalMs / 3600000) * s.rate).toLocaleString('es-MX')}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {Object.values(stats.global).map(s => (
+                            <div key={s.id} className="bg-white p-6 rounded-extra border border-olive-50 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <span className="text-[10px] font-bold text-olive-400 uppercase tracking-widest block mb-1">{s.name}</span>
+                                    <div className="text-2xl font-black text-olive-900 tracking-tight">
+                                        ${((s.totalMs / 3600000) * s.rate).toLocaleString('es-MX')} 
+                                        <span className="text-[10px] text-olive-300 ml-2 font-bold uppercase tracking-widest">Pendiente</span>
+                                    </div>
+                                    <div className="text-[11px] font-bold text-olive-400 mt-1">Acumulado: {(s.totalMs / 3600000).toFixed(1)} hrs</div>
                                 </div>
+                                <button 
+                                    onClick={() => registrarPago(s)}
+                                    className="mt-4 w-full bg-olive-100 hover:bg-olive-600 hover:text-white text-olive-700 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                >
+                                    💸 Registrar Pago
+                                </button>
                             </div>
                         ))}
                     </div>
@@ -445,11 +449,9 @@
                                 <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-olive-800 text-white px-6 py-3 rounded-full text-xs font-bold outline-none border border-olive-700 cursor-pointer">
                                     {weeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
                                 </select>
-                                <button onClick={exportToExcel} className="bg-olive-500 text-white px-6 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-olive-400 transition-all">
-                                    Exportar Excel
-                                </button>
+                                <button onClick={exportToExcel} className="bg-olive-500 text-white px-6 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-olive-400 transition-all">Exportar Excel</button>
                             </div>
-                            <span className="text-[10px] text-olive-300 font-bold uppercase tracking-[0.2em]">Bitácora Semanal (Lun - Dom)</span>
+                            <span className="text-[10px] text-olive-300 font-bold uppercase tracking-[0.2em]">Movimientos de la Semana</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
@@ -458,21 +460,29 @@
                                         <th className="p-5">Fecha</th>
                                         <th className="p-5">Empleado</th>
                                         <th className="p-5">Tipo</th>
-                                        <th className="p-5">Hora</th>
+                                        <th className="p-5">Monto / Hora</th>
                                         <th className="p-5"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredLogs.map(l => (
                                         <tr key={l.id} className="border-t border-olive-50 hover:bg-olive-50/20 transition-colors">
-                                            <td className="p-5 font-bold text-olive-700">{l.dateObj.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'2-digit'})}</td>
+                                            <td className="p-5 font-bold text-olive-700">{l.dateObj.toLocaleDateString('es-MX')}</td>
                                             <td className="p-5 font-bold text-olive-900 uppercase">{l.employeeName}</td>
                                             <td className="p-5">
-                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold ${l.type === 'IN' ? 'bg-olive-50 text-olive-600 border border-olive-100' : 'bg-terracotta-50 text-terracotta-600 border border-terracotta-100'}`}>{l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}</span>
+                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold ${
+                                                    l.type === 'IN' ? 'bg-olive-50 text-olive-600 border border-olive-100' : 
+                                                    l.type === 'OUT' ? 'bg-terracotta-50 text-terracotta-600 border border-terracotta-100' :
+                                                    'bg-green-100 text-green-700 border border-green-200'
+                                                }`}>
+                                                    {l.type === 'IN' ? 'ENTRADA' : l.type === 'OUT' ? 'SALIDA' : 'PAGO REALIZADO'}
+                                                </span>
                                             </td>
-                                            <td className="p-5 font-semibold text-olive-500">{l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                                            <td className="p-5 font-semibold text-olive-500">
+                                                {l.type === 'PAYMENT' ? `$${l.amount}` : l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </td>
                                             <td className="p-5 text-right">
-                                                <button onClick={() => confirm('¿Borrar?') && db.collection('time_logs').doc(l.id).delete()} className="text-olive-100 hover:text-terracotta-500 px-4 transition-colors">✕</button>
+                                                <button onClick={() => confirm('¿Borrar registro?') && db.collection('time_logs').doc(l.id).delete()} className="text-olive-100 hover:text-terracotta-500 px-4 transition-colors">✕</button>
                                             </td>
                                         </tr>
                                     ))}
