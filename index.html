@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reloj Checador Pro - Nómina Lunes a Domingo</title>
+    <title>Reloj Checador Pro</title>
     
+    <!-- Tipografía Redonda -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -15,22 +20,34 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+        body { 
+            font-family: 'Quicksand', sans-serif; 
+            background-color: #f0f4f8; 
+        }
         .btn-press:active { transform: scale(0.95); opacity: 0.8; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        .animate-fadeIn { animation: fadeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        
         .key-btn {
             background: white;
-            border: 1px solid #e2e8f0;
+            border: 2px solid #edf2f7;
             font-size: 1.5rem;
-            font-weight: 800;
+            font-weight: 700;
             padding: 1.25rem;
-            border-radius: 1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: all 0.1s;
-            color: #1e293b;
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            color: #2d3748;
         }
-        .key-btn:active { background: #f1f5f9; transform: scale(0.95); }
+        .key-btn:active { 
+            background: #edf2f7; 
+            transform: scale(0.9);
+            border-color: #cbd5e0;
+        }
+        
+        /* Redondeado extra para todo */
+        .rounded-custom { border-radius: 1.5rem; }
+        .rounded-full-custom { border-radius: 9999px; }
     </style>
 </head>
 <body>
@@ -41,7 +58,6 @@
 
         const CLAVE_ADMIN = '1391'; 
 
-        // IMPORTANTE: RELLENAR CON TUS DATOS DE FIREBASE
         const firebaseConfig = {
   apiKey: "AIzaSyBBMYDOqzXp1DUQArqYGXgGPyRjoV5eEEQ",
   authDomain: "checador-escarola.firebaseapp.com",
@@ -50,6 +66,7 @@
   messagingSenderId: "836776118383",
   appId: "1:836776118383:web:8d8ac6db5d4cc36f59659a"
 };
+
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
@@ -74,7 +91,7 @@
                     setLoading(false);
                 });
 
-                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(5000).onSnapshot(snap => {
+                const unsubLogs = db.collection('time_logs').orderBy('timestamp', 'desc').limit(2000).onSnapshot(snap => {
                     setLogs(snap.docs.map(d => ({ 
                         id: d.id, 
                         ...d.data(),
@@ -85,30 +102,39 @@
                 return () => { unsubEmp(); unsubLogs(); };
             }, []);
 
-            if (loading) return <div className="h-screen flex items-center justify-center text-slate-400 font-bold tracking-widest uppercase text-xs italic">Cargando Reloj de Nómina...</div>;
+            if (loading) return (
+                <div className="h-screen flex flex-col items-center justify-center text-slate-400">
+                    <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+                    <span className="font-bold tracking-widest uppercase text-xs">Cargando Sistema...</span>
+                </div>
+            );
 
             return (
                 <div className="min-h-screen pb-10">
                     {notification && (
-                        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-xl border-2 font-bold animate-fadeIn ${
+                        <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-8 py-4 rounded-full shadow-2xl border-2 font-bold animate-fadeIn flex items-center gap-2 ${
                             notification.type === 'success' ? 'bg-white border-emerald-500 text-emerald-600' : 'bg-white border-rose-500 text-rose-600'
                         }`}>
+                            <span>{notification.type === 'success' ? '✓' : '✕'}</span>
                             {notification.msg}
                         </div>
                     )}
 
-                    <nav className="bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50">
-                        <div className="font-black italic uppercase tracking-tighter">RELOJ <span className="text-emerald-400">PAGOS</span></div>
+                    <nav className="bg-white border-b border-slate-200 p-5 flex justify-between items-center sticky top-0 z-50">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold">R</div>
+                            <div className="font-bold text-slate-800 text-lg tracking-tight">RELOJ <span className="text-emerald-500">CHECADOR PRO</span></div>
+                        </div>
                         <button onClick={() => {
                             if(view === 'admin') return setView('reloj');
-                            const p = prompt("PIN ADMIN:");
+                            const p = prompt("PIN ADMINISTRADOR:");
                             if(p === CLAVE_ADMIN) setView('admin');
-                        }} className="bg-slate-800 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest border border-slate-700">
-                            {view === 'admin' ? 'VISTA RELOJ' : 'MODO ADMIN'}
+                        }} className="bg-slate-100 text-slate-600 px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest border border-slate-200 hover:bg-slate-200 transition-colors">
+                            {view === 'admin' ? '← VOLVER AL RELOJ' : 'MODO ADMIN'}
                         </button>
                     </nav>
 
-                    <main className="p-4 max-w-6xl mx-auto">
+                    <main className="p-6 max-w-6xl mx-auto">
                         {view === 'reloj' ? <VistaReloj employees={employees} logs={logs} showNotify={showNotify} /> : <VistaAdmin employees={employees} logs={logs} showNotify={showNotify} />}
                     </main>
                 </div>
@@ -131,26 +157,29 @@
                     type: tipo,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                showNotify(`${tipo} REGISTRADA`);
+                showNotify(`${tipo === 'IN' ? 'ENTRADA' : 'SALIDA'} REGISTRADA`);
                 setSel(null); setPin('');
             };
 
             if (sel) return (
-                <div className="max-w-md mx-auto mt-6 animate-fadeIn bg-white p-8 rounded-[2rem] shadow-xl border border-slate-200 text-center">
-                    <h2 className="text-2xl font-black mb-1 uppercase text-slate-800">{sel.name}</h2>
-                    <p className="text-[10px] font-black text-slate-400 mb-6 uppercase tracking-widest">
-                        ESTADO ACTUAL: <span className={getUltimoEstado(sel.id) === 'IN' ? 'text-emerald-500' : 'text-rose-500'}>{getUltimoEstado(sel.id) === 'IN' ? 'DENTRO' : 'FUERA'}</span>
+                <div className="max-w-md mx-auto mt-6 animate-fadeIn bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl">👤</div>
+                    <h2 className="text-2xl font-bold mb-1 text-slate-800">{sel.name}</h2>
+                    <p className="text-[11px] font-bold text-slate-400 mb-8 uppercase tracking-widest flex items-center justify-center gap-2">
+                        ESTADO: <span className={`px-2 py-0.5 rounded-full ${getUltimoEstado(sel.id) === 'IN' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                            {getUltimoEstado(sel.id) === 'IN' ? 'DENTRO' : 'FUERA'}
+                        </span>
                     </p>
                     
-                    <div className="flex justify-center gap-2 mb-8">
+                    <div className="flex justify-center gap-3 mb-8">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className={`w-12 h-16 border-2 rounded-xl flex items-center justify-center text-3xl font-black ${pin[i] ? 'border-emerald-500 bg-emerald-50 text-emerald-600' : 'border-slate-100 text-slate-200'}`}>
+                            <div key={i} className={`w-14 h-16 border-2 rounded-2xl flex items-center justify-center text-3xl font-bold transition-all ${pin[i] ? 'border-emerald-500 bg-emerald-50 text-emerald-600 shadow-inner' : 'border-slate-100 text-slate-200'}`}>
                                 {pin[i] ? '•' : ''}
                             </div>
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="grid grid-cols-3 gap-4 mb-8">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '⌫'].map(k => (
                             <button key={k} onClick={() => {
                                 if(k === 'C') setPin('');
@@ -161,19 +190,22 @@
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => checar('IN')} disabled={pin.length < 4} className="bg-emerald-600 text-white p-5 rounded-2xl font-black hover:bg-emerald-700 disabled:opacity-30 btn-press">ENTRADA</button>
-                        <button onClick={() => checar('OUT')} disabled={pin.length < 4} className="bg-rose-600 text-white p-5 rounded-2xl font-black hover:bg-rose-700 disabled:opacity-30 btn-press">SALIDA</button>
+                        <button onClick={() => checar('IN')} disabled={pin.length < 4} className="bg-emerald-500 text-white p-5 rounded-[1.5rem] font-bold text-lg hover:bg-emerald-600 disabled:opacity-30 btn-press shadow-lg shadow-emerald-200 transition-all">ENTRADA</button>
+                        <button onClick={() => checar('OUT')} disabled={pin.length < 4} className="bg-rose-500 text-white p-5 rounded-[1.5rem] font-bold text-lg hover:bg-rose-600 disabled:opacity-30 btn-press shadow-lg shadow-rose-200 transition-all">SALIDA</button>
                     </div>
-                    <button onClick={() => setSel(null)} className="mt-6 text-[10px] font-black text-slate-300 uppercase tracking-widest hover:text-slate-500">✕ CANCELAR</button>
+                    <button onClick={() => {setSel(null); setPin('');}} className="mt-8 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">✕ CANCELAR</button>
                 </div>
             );
 
             return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 animate-fadeIn">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 animate-fadeIn">
                     {employees.map(e => (
-                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-6 rounded-2xl border-b-4 border-slate-200 hover:border-emerald-500 transition-all btn-press text-left flex justify-between items-center group shadow-sm">
-                            <div className="font-black text-slate-800 uppercase pr-4 group-hover:text-emerald-700">{e.name}</div>
-                            <div className={`w-3 h-3 rounded-full ${getUltimoEstado(e.id) === 'IN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-200'}`}></div>
+                        <button key={e.id} onClick={() => setSel(e)} className="bg-white p-7 rounded-[2rem] border border-slate-100 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-50 transition-all btn-press text-left flex justify-between items-center group shadow-sm">
+                            <div>
+                                <div className="font-bold text-slate-800 text-lg group-hover:text-emerald-600 transition-colors">{e.name}</div>
+                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Haga clic para marcar</div>
+                            </div>
+                            <div className={`w-4 h-4 rounded-full border-4 border-white shadow-sm ${getUltimoEstado(e.id) === 'IN' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-200'}`}></div>
                         </button>
                     ))}
                 </div>
@@ -201,7 +233,7 @@
                     const end = new Date(start);
                     end.setDate(end.getDate() + 6);
                     end.setHours(23, 59, 59, 999);
-                    const label = `Del ${start.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} al ${end.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
+                    const label = `Semana: ${start.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})} - ${end.toLocaleDateString('es-MX', {day:'2-digit', month:'short'})}`;
                     list.push({ label, start, end, id: start.toISOString() });
                 }
                 return list;
@@ -242,72 +274,126 @@
             };
 
             return (
-                <div className="space-y-6 animate-fadeIn">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                            <h3 className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Registrar Nuevo Empleado</h3>
+                <div className="space-y-8 animate-fadeIn">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                            <h3 className="text-[11px] font-bold text-slate-400 uppercase mb-6 tracking-widest flex items-center gap-2">
+                                <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Nuevo Empleado
+                            </h3>
                             <form onSubmit={async e => {
                                 e.preventDefault();
                                 if(p.length !== 4) return showNotify("PIN debe ser de 4 dígitos", "error");
                                 await db.collection('employees').add({ name: n, pin: p, rate: parseFloat(s) || 0 });
-                                setN(''); setP(''); setS(''); showNotify("GUARDADO");
-                            }} className="space-y-3">
-                                <input value={n} onChange={e => setN(e.target.value)} placeholder="Nombre completo" className="w-full p-3 bg-slate-50 rounded-xl outline-none" required />
-                                <div className="grid grid-cols-2 gap-3">
-                                    <input value={p} onChange={e => setP(e.target.value)} placeholder="PIN (4 nros)" maxLength={4} className="w-full p-3 bg-slate-50 rounded-xl outline-none" required />
-                                    <input value={s} onChange={e => setS(e.target.value)} placeholder="Sueldo x Hora" type="number" step="0.01" className="w-full p-3 bg-slate-50 rounded-xl outline-none" required />
+                                setN(''); setP(''); setS(''); showNotify("EMPLEADO GUARDADO");
+                            }} className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 ml-2 uppercase">Nombre</label>
+                                    <input value={n} onChange={e => setN(e.target.value)} placeholder="Ej: Juan Pérez" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 border border-transparent focus:border-emerald-500 transition-all" required />
                                 </div>
-                                <button className="w-full bg-slate-900 text-white p-3 rounded-xl font-black uppercase text-xs btn-press">Añadir Empleado</button>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 ml-2 uppercase">PIN</label>
+                                        <input value={p} onChange={e => setP(e.target.value)} placeholder="4 dígitos" maxLength={4} className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-transparent focus:border-emerald-500 transition-all text-center font-bold tracking-widest" required />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 ml-2 uppercase">Sueldo/Hr</label>
+                                        <input value={s} onChange={e => setS(e.target.value)} placeholder="$0.00" type="number" step="0.01" className="w-full p-4 bg-slate-50 rounded-2xl outline-none border border-transparent focus:border-emerald-500 transition-all font-bold text-emerald-600" required />
+                                    </div>
+                                </div>
+                                <button className="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold uppercase text-xs btn-press shadow-lg shadow-slate-200 mt-2">Registrar Empleado</button>
                             </form>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 overflow-y-auto max-h-[250px]">
-                            <h3 className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Personal</h3>
-                            {employees.map(e => (
-                                <div key={e.id} className="flex justify-between items-center py-2 border-b border-slate-50 text-xs">
-                                    <span className="font-bold uppercase text-slate-700">{e.name} (${e.rate}/hr)</span>
-                                    <button onClick={() => confirm(`¿Eliminar?`) && db.collection('employees').doc(e.id).delete()} className="text-slate-300 hover:text-rose-500 px-2">✕</button>
-                                </div>
-                            ))}
+                        
+                        <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                            <h3 className="text-[11px] font-bold text-slate-400 uppercase mb-6 tracking-widest flex items-center gap-2">
+                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Lista de Personal & PINs
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[300px] pr-2">
+                                {employees.map(e => (
+                                    <div key={e.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                                        <div>
+                                            <div className="font-bold text-slate-800 text-sm uppercase">{e.name}</div>
+                                            <div className="flex gap-3 mt-1">
+                                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">PIN: {e.pin}</span>
+                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">${e.rate}/hr</span>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => confirm(`¿Eliminar a ${e.name}?`) && db.collection('employees').doc(e.id).delete()} className="text-slate-300 hover:text-rose-500 p-2 transition-colors">✕</button>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
-                    <div className="bg-slate-900 p-4 rounded-2xl flex flex-wrap justify-between items-center gap-4">
-                        <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white p-2 rounded-lg text-xs font-bold border-none outline-none">
-                            {weeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
-                        </select>
-                        <button onClick={exportXLS} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest btn-press">Exportar Nómina (.xlsx)</button>
+                    <div className="bg-slate-900 p-6 rounded-[2rem] flex flex-wrap justify-between items-center gap-4 shadow-xl shadow-slate-200">
+                        <div className="flex items-center gap-3">
+                            <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Periodo:</span>
+                            <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold border border-slate-700 outline-none focus:border-emerald-500">
+                                {weeks.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+                            </select>
+                        </div>
+                        <button onClick={exportXLS} className="bg-emerald-500 text-white px-6 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest btn-press shadow-lg shadow-emerald-900/20">Descargar Nómina Excel</button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {Object.values(stats).map(s => (
-                            <div key={s.name} className="bg-white p-5 rounded-2xl border-l-4 border-l-emerald-500 shadow-sm">
-                                <div className="text-[9px] font-black text-slate-400 uppercase mb-1">{s.name}</div>
-                                <div className="text-lg font-black text-slate-800">{(s.ms / 3600000).toFixed(1)} hrs</div>
-                                <div className="text-xl font-black text-emerald-600">${((s.ms / 3600000) * s.rate).toLocaleString('es-MX', {minimumFractionDigits:2})}</div>
+                            <div key={s.name} className="bg-white p-6 rounded-[2rem] border-t-4 border-t-emerald-500 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-tighter truncate">{s.name}</div>
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <div className="text-2xl font-bold text-slate-800">{(s.ms / 3600000).toFixed(1)} <span className="text-xs text-slate-400">hrs</span></div>
+                                        <div className="text-2xl font-bold text-blue-600 mt-1">
+                                            <span className="text-sm mr-0.5">$</span>
+                                            {((s.ms / 3600000) * s.rate).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                                        </div>
+                                    </div>
+                                    <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-lg">💰</div>
+                                </div>
                             </div>
                         ))}
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        <table className="w-full text-left text-[11px]">
-                            <thead className="bg-slate-50 text-slate-400 font-black uppercase border-b">
-                                <tr><th className="p-4">Día</th><th className="p-4">Empleado</th><th className="p-4">Tipo</th><th className="p-4">Hora</th><th className="p-4 text-right">Acción</th></tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {logs.filter(l => {
-                                    const week = weeks.find(w => w.id === selectedWeek);
-                                    return week ? (l.dateObj >= week.start && l.dateObj <= week.end) : false;
-                                }).map(l => (
-                                    <tr key={l.id} className="hover:bg-slate-50">
-                                        <td className="p-4 font-bold text-slate-500 uppercase">{l.dateObj.toLocaleDateString('es-MX', {weekday: 'short', day:'2-digit'})}</td>
-                                        <td className="p-4 font-black text-slate-800 uppercase">{l.employeeName}</td>
-                                        <td className="p-4"><span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${l.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{l.type}</span></td>
-                                        <td className="p-4 font-mono font-bold text-slate-600">{l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                                        <td className="p-4 text-right"><button onClick={() => confirm('¿Borrar?') && db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500 px-2">✕</button></td>
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+                            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Historial de Marcajes</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50/50 text-slate-400 font-bold uppercase text-[10px] border-b border-slate-100">
+                                    <tr>
+                                        <th className="p-5">Día / Fecha</th>
+                                        <th className="p-5">Empleado</th>
+                                        <th className="p-5">Acción</th>
+                                        <th className="p-5">Hora Exacta</th>
+                                        <th className="p-5 text-right">Admin</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {logs.filter(l => {
+                                        const week = weeks.find(w => w.id === selectedWeek);
+                                        return week ? (l.dateObj >= week.start && l.dateObj <= week.end) : false;
+                                    }).map(l => (
+                                        <tr key={l.id} className="hover:bg-slate-50/80 transition-colors">
+                                            <td className="p-5 font-bold text-slate-500 uppercase text-xs">
+                                                {l.dateObj.toLocaleDateString('es-MX', {weekday: 'long', day:'2-digit', month:'short'})}
+                                            </td>
+                                            <td className="p-5 font-bold text-slate-800 uppercase text-xs">{l.employeeName}</td>
+                                            <td className="p-5">
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${l.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                    {l.type === 'IN' ? 'ENTRADA' : 'SALIDA'}
+                                                </span>
+                                            </td>
+                                            <td className="p-5 font-bold text-slate-600 text-xs">
+                                                {l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
+                                            </td>
+                                            <td className="p-5 text-right">
+                                                <button onClick={() => confirm('¿Borrar este registro?') && db.collection('time_logs').doc(l.id).delete()} className="text-slate-200 hover:text-rose-500 transition-colors">✕</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             );
