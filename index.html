@@ -13,6 +13,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librería para Exportar a Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; overflow-x: hidden; }
@@ -275,6 +277,23 @@
                 setN(''); setP('');
             };
 
+            const exportToExcel = () => {
+                if (filteredLogs.length === 0) return showNotify("No hay datos para exportar", "error");
+                
+                const data = filteredLogs.map(l => ({
+                    Fecha: l.dateObj.toLocaleDateString(),
+                    Empleado: l.employeeName,
+                    Tipo: l.type,
+                    Hora: l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                }));
+
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Registros");
+                XLSX.writeFile(workbook, `Reporte_Asistencia_${selectedWeek}.xlsx`);
+                showNotify("EXCEL GENERADO");
+            };
+
             return (
                 <div className="space-y-6 mt-6 animate-fadeIn pb-20">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -313,10 +332,18 @@
                     </div>
 
                     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-4 bg-slate-900 flex justify-between items-center">
-                            <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white p-2 rounded-xl text-xs font-bold outline-none border border-slate-700">
-                                {weeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
-                            </select>
+                        <div className="p-4 bg-slate-900 flex flex-wrap justify-between items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)} className="bg-slate-800 text-white p-2 rounded-xl text-xs font-bold outline-none border border-slate-700">
+                                    {weeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                                </select>
+                                <button 
+                                    onClick={exportToExcel}
+                                    className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-900/20"
+                                >
+                                    📥 Exportar Excel
+                                </button>
+                            </div>
                             <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Historial Detallado</span>
                         </div>
                         <div className="overflow-x-auto">
@@ -357,3 +384,4 @@
     </script>
 </body>
 </html>
+
