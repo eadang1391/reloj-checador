@@ -368,6 +368,9 @@
             const [editName, setEditName] = useState('');
             const [editRate, setEditRate] = useState('');
 
+            const [editingLogId, setEditingLogId] = useState(null);
+            const [editHoursValue, setEditHoursValue] = useState('');
+
             const weeks = useMemo(() => {
                 const list = [];
                 for(let i=0; i < 12; i++) {
@@ -409,7 +412,6 @@
                 if(!weekObj) return [];
                 const filtered = logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
                 
-                // Grouping logic: Payments stay as single rows, IN/OUT grouped by day/employee
                 const groups = [];
                 const dayEmployeeMap = {};
 
@@ -423,6 +425,7 @@
                         if (!dayEmployeeMap[key]) {
                             dayEmployeeMap[key] = {
                                 id: key,
+                                employeeId: log.employeeId,
                                 employeeName: log.employeeName,
                                 dateStr: dateKey,
                                 dateObj: log.dateObj,
@@ -438,7 +441,6 @@
                     }
                 });
 
-                // Calculate summary for each group
                 groups.forEach(g => {
                     if (g.type === 'DAILY_SUMMARY') {
                         const ins = g.entries.filter(e => e.type === 'IN').sort((a,b) => a.dateObj - b.dateObj);
@@ -447,7 +449,6 @@
                         if (ins.length > 0) g.checkIn = ins[0].dateObj;
                         if (outs.length > 0) g.checkOut = outs[outs.length - 1].dateObj;
                         
-                        // Calculated based on IN -> OUT pairs in this specific day
                         let dayMs = 0;
                         let lastIn = null;
                         [...g.entries].sort((a,b) => a.dateObj - b.dateObj).forEach(e => {
@@ -495,6 +496,62 @@
                 }
             };
 
+            const startEditingLog = (group) => {
+                setEditingLogId(group.id);
+                setEditHoursValue(group.totalHours);
+            };
+
+            const saveEditedHours = async (group) => {
+                const newHours = parseFloat(editHoursValue);
+                if (isNaN(newHours)) return showNotify("Ingresa un número válido", "error");
+
+                // Buscamos el último registro de salida de ese día para ajustarlo
+                const sortedEntries = [...group.entries].sort((a, b) => b.dateObj - a.dateObj);
+                const lastOut = sortedEntries.find(e => e.type === 'OUT');
+                const lastIn = sortedEntries.find(e => e.type === 'IN');
+
+                if (!lastIn) return showNotify("No hay registro de entrada ese día", "error");
+
+                try {
+                    // Si no hay salida, la creamos
+                    if (!lastOut) {
+                        const newOutDate = new Date(lastIn.dateObj.getTime() + (newHours * 3600000));
+                        await db.collection('time_logs').add({
+                            employeeId: group.employeeId,
+                            employeeName: group.employeeName,
+                            type: 'OUT',
+                            timestamp: firebase.firestore.Timestamp.fromDate(newOutDate)
+                        });
+                    } else {
+                        // Si hay salida, la ajustamos para que la diferencia sea la deseada
+                        // Horas totales = (Sumatoria de IN/OUT anteriores) + (LastOut - LastIn)
+                        // Para simplificar: Ajustamos LastOut = LastIn + (Nuevas Horas - Horas previas de otros turnos)
+                        let otherTurnsMs = 0;
+                        let tempIn = null;
+                        [...group.entries].sort((a,b) => a.dateObj - b.dateObj).forEach(e => {
+                            if (e.id === lastIn.id || e.id === lastOut.id) return;
+                            if (e.type === 'IN') tempIn = e.dateObj;
+                            else if (e.type === 'OUT' && tempIn) {
+                                otherTurnsMs += (e.dateObj - tempIn);
+                                tempIn = null;
+                            }
+                        });
+
+                        const targetMs = newHours * 3600000;
+                        const neededFromLastTurnMs = targetMs - otherTurnsMs;
+                        const newOutDate = new Date(lastIn.dateObj.getTime() + neededFromLastTurnMs);
+                        
+                        await db.collection('time_logs').doc(lastOut.id).update({
+                            timestamp: firebase.firestore.Timestamp.fromDate(newOutDate)
+                        });
+                    }
+                    showNotify("HORAS ACTUALIZADAS");
+                    setEditingLogId(null);
+                } catch (e) {
+                    showNotify("Error al actualizar horas", "error");
+                }
+            };
+
             const confirmPayment = async (emp) => {
                 const monto = ((emp.totalMs / 3600000) * emp.rate).toFixed(2);
                 if (monto <= 0) return showNotify("No hay saldo pendiente", "error");
@@ -518,7 +575,6 @@
             };
 
             const executeDeleteLog = async () => {
-                // If it's a summary, we delete all entries associated
                 if (confirmAction.entries) {
                     const batch = db.batch();
                     confirmAction.entries.forEach(e => {
@@ -656,7 +712,7 @@
                                         <th className="p-5">Entrada</th>
                                         <th className="p-5">Salida</th>
                                         <th className="p-5">Total Horas</th>
-                                        <th className="p-5"></th>
+                                        <th className="p-5 text-right">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -680,17 +736,34 @@
                                                         {g.checkOut ? g.checkOut.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
                                                     </td>
                                                     <td className="p-5">
-                                                        <span className="bg-olive-900 text-white px-3 py-1 rounded-lg font-bold text-[10px]">{g.totalHours} hrs</span>
+                                                        {editingLogId === g.id ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <input 
+                                                                    type="number" 
+                                                                    step="0.01"
+                                                                    className="w-16 p-1 border rounded bg-white text-xs font-bold"
+                                                                    value={editHoursValue}
+                                                                    onChange={e => setEditHoursValue(e.target.value)}
+                                                                />
+                                                                <button onClick={() => saveEditedHours(g)} className="text-olive-600 font-bold">✓</button>
+                                                                <button onClick={() => setEditingLogId(null)} className="text-terracotta-400 font-bold">✕</button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="bg-olive-900 text-white px-3 py-1 rounded-lg font-bold text-[10px]">{g.totalHours} hrs</span>
+                                                        )}
                                                     </td>
                                                 </>
                                             )}
-                                            <td className="p-5 text-right">
+                                            <td className="p-5 text-right space-x-2">
+                                                {g.type !== 'PAYMENT' && !editingLogId && (
+                                                    <button onClick={() => startEditingLog(g)} className="text-olive-400 hover:text-olive-700 transition-colors">✎</button>
+                                                )}
                                                 <button onClick={() => setConfirmAction({
                                                     type:'deleteLog', 
                                                     id: g.id, 
                                                     name: g.employeeName,
-                                                    entries: g.entries // For summary deletion
-                                                })} className="text-olive-100 hover:text-terracotta-500 px-4 transition-colors">✕</button>
+                                                    entries: g.entries
+                                                })} className="text-olive-100 hover:text-terracotta-500 transition-colors">✕</button>
                                             </td>
                                         </tr>
                                     ))}
