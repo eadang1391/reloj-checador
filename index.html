@@ -386,12 +386,6 @@
 
             useEffect(() => { if(weeks.length > 0 && !selectedWeek) setSelectedWeek(weeks[0].value); }, [weeks]);
 
-            const filteredLogs = useMemo(() => {
-                const weekObj = weeks.find(w => w.value === selectedWeek);
-                if(!weekObj) return [];
-                return logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
-            }, [logs, selectedWeek, weeks]);
-
             const stats = useMemo(() => {
                 const res = {};
                 employees.forEach(e => res[e.id] = { id: e.id, name: e.name, totalMs: 0, lastIn: null, rate: parseFloat(e.rate || 0), totalPaid: 0 });
@@ -409,6 +403,66 @@
                 });
                 return res;
             }, [logs, employees]);
+
+            const groupedLogs = useMemo(() => {
+                const weekObj = weeks.find(w => w.value === selectedWeek);
+                if(!weekObj) return [];
+                const filtered = logs.filter(l => l.dateObj >= weekObj.start && l.dateObj <= weekObj.end);
+                
+                // Grouping logic: Payments stay as single rows, IN/OUT grouped by day/employee
+                const groups = [];
+                const dayEmployeeMap = {};
+
+                filtered.forEach(log => {
+                    if (log.type === 'PAYMENT') {
+                        groups.push({ ...log, isPayment: true });
+                    } else {
+                        const dateKey = log.dateObj.toLocaleDateString('es-MX');
+                        const key = `${log.employeeId}-${dateKey}`;
+                        
+                        if (!dayEmployeeMap[key]) {
+                            dayEmployeeMap[key] = {
+                                id: key,
+                                employeeName: log.employeeName,
+                                dateStr: dateKey,
+                                dateObj: log.dateObj,
+                                type: 'DAILY_SUMMARY',
+                                entries: [],
+                                checkIn: null,
+                                checkOut: null,
+                                totalHours: 0
+                            };
+                            groups.push(dayEmployeeMap[key]);
+                        }
+                        dayEmployeeMap[key].entries.push(log);
+                    }
+                });
+
+                // Calculate summary for each group
+                groups.forEach(g => {
+                    if (g.type === 'DAILY_SUMMARY') {
+                        const ins = g.entries.filter(e => e.type === 'IN').sort((a,b) => a.dateObj - b.dateObj);
+                        const outs = g.entries.filter(e => e.type === 'OUT').sort((a,b) => a.dateObj - b.dateObj);
+                        
+                        if (ins.length > 0) g.checkIn = ins[0].dateObj;
+                        if (outs.length > 0) g.checkOut = outs[outs.length - 1].dateObj;
+                        
+                        // Calculated based on IN -> OUT pairs in this specific day
+                        let dayMs = 0;
+                        let lastIn = null;
+                        [...g.entries].sort((a,b) => a.dateObj - b.dateObj).forEach(e => {
+                            if (e.type === 'IN') lastIn = e.dateObj;
+                            else if (e.type === 'OUT' && lastIn) {
+                                dayMs += (e.dateObj - lastIn);
+                                lastIn = null;
+                            }
+                        });
+                        g.totalHours = (dayMs / 3600000).toFixed(2);
+                    }
+                });
+
+                return groups.sort((a,b) => b.dateObj - a.dateObj);
+            }, [logs, selectedWeek, weeks]);
 
             const totalSueldosPagados = useMemo(() => Object.values(stats).reduce((acc, curr) => acc + curr.totalPaid, 0), [stats]);
             const totalPorPagarActualmente = useMemo(() => 
@@ -464,8 +518,17 @@
             };
 
             const executeDeleteLog = async () => {
-                await db.collection('time_logs').doc(confirmAction.id).delete();
-                showNotify("REGISTRO BORRADO");
+                // If it's a summary, we delete all entries associated
+                if (confirmAction.entries) {
+                    const batch = db.batch();
+                    confirmAction.entries.forEach(e => {
+                        batch.delete(db.collection('time_logs').doc(e.id));
+                    });
+                    await batch.commit();
+                } else {
+                    await db.collection('time_logs').doc(confirmAction.id).delete();
+                }
+                showNotify("REGISTRO(S) BORRADO(S)");
                 setConfirmAction(null);
             };
 
@@ -582,7 +645,7 @@
                                 </select>
                                 <button onClick={exportToExcel} className="bg-olive-500 text-white px-6 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-olive-400 transition-all">Exportar Reporte</button>
                             </div>
-                            <span className="text-[10px] text-olive-300 font-bold uppercase tracking-[0.2em]">Bitácora de Movimientos</span>
+                            <span className="text-[10px] text-olive-300 font-bold uppercase tracking-[0.2em]">Bitácora Resumida</span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
@@ -590,30 +653,44 @@
                                     <tr>
                                         <th className="p-5">Fecha</th>
                                         <th className="p-5">Empleado</th>
-                                        <th className="p-5">Tipo</th>
-                                        <th className="p-5">Detalle</th>
+                                        <th className="p-5">Entrada</th>
+                                        <th className="p-5">Salida</th>
+                                        <th className="p-5">Total Horas</th>
                                         <th className="p-5"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredLogs.map(l => (
-                                        <tr key={l.id} className="border-t border-olive-50 hover:bg-olive-50/20 transition-colors">
-                                            <td className="p-5 font-bold text-olive-700">{l.dateObj.toLocaleDateString('es-MX')}</td>
-                                            <td className="p-5 font-bold text-olive-900 uppercase">{l.employeeName}</td>
-                                            <td className="p-5">
-                                                <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold ${
-                                                    l.type === 'IN' ? 'bg-olive-50 text-olive-600 border border-olive-100' : 
-                                                    l.type === 'OUT' ? 'bg-terracotta-50 text-terracotta-600 border border-terracotta-100' :
-                                                    'bg-green-100 text-green-700 border border-green-200'
-                                                }`}>
-                                                    {l.type === 'IN' ? 'ENTRADA' : l.type === 'OUT' ? 'SALIDA' : 'PAGO'}
-                                                </span>
-                                            </td>
-                                            <td className="p-5 font-semibold text-olive-500">
-                                                {l.type === 'PAYMENT' ? `Recibo: $${l.amount}` : l.dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                            </td>
+                                    {groupedLogs.map(g => (
+                                        <tr key={g.id} className="border-t border-olive-50 hover:bg-olive-50/20 transition-colors">
+                                            <td className="p-5 font-bold text-olive-700">{g.type === 'PAYMENT' ? g.dateObj.toLocaleDateString('es-MX') : g.dateStr}</td>
+                                            <td className="p-5 font-bold text-olive-900 uppercase">{g.employeeName}</td>
+                                            {g.type === 'PAYMENT' ? (
+                                                <td colSpan="3" className="p-5">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="px-4 py-1.5 rounded-full text-[9px] font-bold bg-green-100 text-green-700 border border-green-200 uppercase">PAGO REGISTRADO</span>
+                                                        <span className="font-black text-green-800 text-sm ml-2">${g.amount}</span>
+                                                    </div>
+                                                </td>
+                                            ) : (
+                                                <>
+                                                    <td className="p-5 font-semibold text-olive-600">
+                                                        {g.checkIn ? g.checkIn.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                                                    </td>
+                                                    <td className="p-5 font-semibold text-terracotta-500">
+                                                        {g.checkOut ? g.checkOut.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                                                    </td>
+                                                    <td className="p-5">
+                                                        <span className="bg-olive-900 text-white px-3 py-1 rounded-lg font-bold text-[10px]">{g.totalHours} hrs</span>
+                                                    </td>
+                                                </>
+                                            )}
                                             <td className="p-5 text-right">
-                                                <button onClick={() => setConfirmAction({type:'deleteLog', id: l.id, name: l.employeeName})} className="text-olive-100 hover:text-terracotta-500 px-4 transition-colors">✕</button>
+                                                <button onClick={() => setConfirmAction({
+                                                    type:'deleteLog', 
+                                                    id: g.id, 
+                                                    name: g.employeeName,
+                                                    entries: g.entries // For summary deletion
+                                                })} className="text-olive-100 hover:text-terracotta-500 px-4 transition-colors">✕</button>
                                             </td>
                                         </tr>
                                     ))}
