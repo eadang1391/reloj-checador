@@ -75,7 +75,6 @@
             background-repeat: no-repeat; background-position: right 1rem center; background-size: 1em; padding-right: 2.5rem;
         }
 
-        /* Scrollbar custom */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #d5dbbc; border-radius: 10px; }
@@ -101,7 +100,6 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // COMPONENTE MODAL ESTILIZADO
         const Modal = ({ children, onClose, title }) => (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 glass-modal">
                 <div className="bg-white w-full max-w-md rounded-extra shadow-2xl border border-olive-50 overflow-hidden animate-scaleUp">
@@ -124,8 +122,6 @@
             const [logs, setLogs] = useState([]);
             const [loading, setLoading] = useState(true);
             const [notification, setNotification] = useState(null);
-            
-            // Estados para Modales
             const [showAdminPin, setShowAdminPin] = useState(false);
             const [adminPinInput, setAdminPinInput] = useState('');
 
@@ -187,7 +183,6 @@
 
             return (
                 <div className="min-h-screen pb-10 relative">
-                    {/* NOTIFICACIONES */}
                     {notification && (
                         <div className={`fixed left-1/2 top-0 z-[300] px-8 py-5 rounded-full shadow-2xl border flex items-center gap-4 animate-notification min-w-[320px] ${
                             notification.type === 'success' ? 'bg-white border-olive-100 text-olive-800' : 'bg-white border-terracotta-100 text-terracotta-800'
@@ -197,7 +192,6 @@
                         </div>
                     )}
 
-                    {/* MODAL PIN ADMINISTRADOR */}
                     {showAdminPin && (
                         <Modal title="Acceso de Seguridad" onClose={() => setShowAdminPin(false)}>
                             <div className="text-center">
@@ -338,9 +332,12 @@
             const [p, setP] = useState('');
             const [s, setS] = useState(''); 
             const [selectedWeek, setSelectedWeek] = useState('');
-            
-            // Estados para modales de confirmación
-            const [confirmAction, setConfirmAction] = useState(null); // { type, id, name, extra }
+            const [confirmAction, setConfirmAction] = useState(null);
+
+            // Estado para edición en línea
+            const [editingId, setEditingId] = useState(null);
+            const [editName, setEditName] = useState('');
+            const [editRate, setEditRate] = useState('');
 
             const weeks = useMemo(() => {
                 const list = [];
@@ -385,7 +382,6 @@
             }, [logs, employees]);
 
             const totalSueldosPagados = useMemo(() => Object.values(stats).reduce((acc, curr) => acc + curr.totalPaid, 0), [stats]);
-            
             const totalPorPagarActualmente = useMemo(() => 
                 Object.values(stats).reduce((acc, s) => acc + ((s.totalMs / 3600000) * s.rate), 0), 
             [stats]);
@@ -395,6 +391,27 @@
                 await db.collection('employees').add({ name: n, pin: p, rate: parseFloat(s) || 0 });
                 showNotify("EMPLEADO REGISTRADO");
                 setN(''); setP(''); setS('');
+            };
+
+            // Función para iniciar edición
+            const startEditing = (emp) => {
+                setEditingId(emp.id);
+                setEditName(emp.name);
+                setEditRate(emp.rate);
+            };
+
+            // Función para guardar cambios
+            const saveEdit = async (id) => {
+                try {
+                    await db.collection('employees').doc(id).update({
+                        name: editName,
+                        rate: parseFloat(editRate) || 0
+                    });
+                    showNotify("CAMBIOS GUARDADOS");
+                    setEditingId(null);
+                } catch (e) {
+                    showNotify("Error al actualizar", "error");
+                }
             };
 
             const confirmPayment = async (emp) => {
@@ -439,13 +456,10 @@
 
             return (
                 <div className="space-y-8 mt-6 animate-fadeIn pb-20">
-                    {/* MODALES DE CONFIRMACIÓN ESTILIZADOS */}
                     {confirmAction && (
                         <Modal title="Confirmar Acción" onClose={() => setConfirmAction(null)}>
                             <div className="text-center">
-                                <div className="text-4xl mb-4">
-                                    {confirmAction.type === 'payment' ? '💰' : '⚠️'}
-                                </div>
+                                <div className="text-4xl mb-4">{confirmAction.type === 'payment' ? '💰' : '⚠️'}</div>
                                 <h4 className="text-xl font-bold text-olive-900 mb-2 uppercase tracking-tight">
                                     {confirmAction.type === 'payment' ? 'Registrar Pago' : '¿Está seguro?'}
                                 </h4>
@@ -456,12 +470,9 @@
                                 </p>
                                 <div className="flex gap-4">
                                     <button onClick={() => setConfirmAction(null)} className="flex-1 p-4 rounded-2xl bg-olive-50 text-olive-400 font-bold uppercase text-[10px] tracking-widest hover:bg-olive-100 transition-all">Cancelar</button>
-                                    <button 
-                                        onClick={confirmAction.type === 'payment' ? executePayment : confirmAction.type === 'deleteEmp' ? executeDeleteEmployee : executeDeleteLog} 
+                                    <button onClick={confirmAction.type === 'payment' ? executePayment : confirmAction.type === 'deleteEmp' ? executeDeleteEmployee : executeDeleteLog} 
                                         className={`flex-1 p-4 rounded-2xl text-white font-bold uppercase text-[10px] tracking-widest shadow-lg transition-all ${confirmAction.type === 'payment' ? 'bg-olive-600 hover:bg-olive-700' : 'bg-terracotta-500 hover:bg-terracotta-600'}`}
-                                    >
-                                        Confirmar
-                                    </button>
+                                    >Confirmar</button>
                                 </div>
                             </div>
                         </Modal>
@@ -494,11 +505,25 @@
                             <h3 className="font-bold text-xs mb-6 text-olive-400 uppercase tracking-widest">Lista de Personal</h3>
                             {employees.map(e => (
                                 <div key={e.id} className="flex justify-between items-center p-4 mb-2 bg-olive-50/30 rounded-2xl group transition-all">
-                                    <div>
-                                        <span className="font-bold text-olive-800 text-sm uppercase block tracking-tight">{e.name}</span>
-                                        <span className="text-[10px] text-olive-400 font-bold">PIN: {e.pin} | ${e.rate}/hr</span>
-                                    </div>
-                                    <button onClick={() => setConfirmAction({ type:'deleteEmp', id: e.id, name: e.name })} className="text-olive-200 hover:text-terracotta-500 font-bold p-2 transition-colors">✕</button>
+                                    {editingId === e.id ? (
+                                        <div className="flex-1 flex gap-2">
+                                            <input value={editName} onChange={v => setEditName(v.target.value)} className="flex-1 p-2 text-xs border rounded-lg bg-white" placeholder="Nombre" />
+                                            <input value={editRate} onChange={v => setEditRate(v.target.value)} className="w-20 p-2 text-xs border rounded-lg bg-white" type="number" placeholder="$/hr" />
+                                            <button onClick={() => saveEdit(e.id)} className="bg-olive-600 text-white px-3 py-1 rounded-lg text-xs font-bold">✓</button>
+                                            <button onClick={() => setEditingId(null)} className="bg-terracotta-100 text-terracotta-600 px-3 py-1 rounded-lg text-xs font-bold">✕</button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div>
+                                                <span className="font-bold text-olive-800 text-sm uppercase block tracking-tight">{e.name}</span>
+                                                <span className="text-[10px] text-olive-400 font-bold">PIN: {e.pin} | ${e.rate}/hr</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => startEditing(e)} className="text-olive-300 hover:text-olive-600 p-2 transition-colors">✎</button>
+                                                <button onClick={() => setConfirmAction({ type:'deleteEmp', id: e.id, name: e.name })} className="text-olive-100 hover:text-terracotta-500 font-bold p-2 transition-colors">✕</button>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -515,10 +540,7 @@
                                     <div className="text-[10px] text-terracotta-500 font-bold uppercase mt-1">Sueldo Pendiente</div>
                                     <div className="text-[11px] font-bold text-olive-400 mt-2">Horas por cobrar: {(s.totalMs / 3600000).toFixed(1)}</div>
                                 </div>
-                                <button 
-                                    onClick={() => confirmPayment(s)}
-                                    className="mt-6 w-full bg-olive-50 hover:bg-olive-600 hover:text-white text-olive-700 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
-                                >
+                                <button onClick={() => confirmPayment(s)} className="mt-6 w-full bg-olive-50 hover:bg-olive-600 hover:text-white text-olive-700 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
                                     💸 Pagar Nómina
                                 </button>
                             </div>
