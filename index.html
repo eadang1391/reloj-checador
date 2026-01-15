@@ -116,6 +116,26 @@
             </div>
         );
 
+        function RelojDigital() {
+            const [hora, setHora] = useState(new Date());
+
+            useEffect(() => {
+                const timer = setInterval(() => setHora(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            return (
+                <div className="flex flex-col items-center sm:items-end">
+                    <span className="text-xl sm:text-2xl font-black tracking-tighter tabular-nums text-white leading-none">
+                        {hora.toLocaleTimeString('es-MX', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-olive-400 mt-1">
+                        {hora.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })}
+                    </span>
+                </div>
+            );
+        }
+
         function App() {
             const [view, setView] = useState('reloj');
             const [employees, setEmployees] = useState([]);
@@ -214,15 +234,25 @@
                         </Modal>
                     )}
 
-                    <nav className="bg-olive-900 text-white px-6 py-5 flex justify-between items-center shadow-xl sticky top-0 z-50 rounded-b-[2.5rem]">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-olive-500 p-2 rounded-2xl shadow-lg shadow-olive-900/40">
-                                <span className="text-xl">⏱️</span>
+                    <nav className="bg-olive-900 text-white px-6 py-4 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center shadow-xl sticky top-0 z-50 rounded-b-[2rem] sm:rounded-b-[2.5rem]">
+                        <div className="flex justify-between items-center w-full sm:w-auto">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-olive-500 p-2 rounded-2xl shadow-lg shadow-olive-900/40">
+                                    <span className="text-xl">⏱️</span>
+                                </div>
+                                <span className="font-bold uppercase tracking-tighter text-lg text-white">
+                                    Reloj<span className="text-olive-300 font-black">Escarola</span>
+                                </span>
                             </div>
-                            <span className="font-bold uppercase tracking-tighter text-lg text-white">
-                                Reloj<span className="text-olive-300 font-black">Escarola</span>
-                            </span>
+                            <div className="sm:hidden">
+                                <RelojDigital />
+                            </div>
                         </div>
+                        
+                        <div className="hidden sm:block">
+                            <RelojDigital />
+                        </div>
+
                         <button onClick={handleAdminAccess} className="bg-olive-800 hover:bg-olive-700 text-[10px] px-6 py-2.5 rounded-full border border-olive-700 font-black uppercase tracking-widest transition-all">
                             {view === 'admin' ? 'SALIR MODO ADMIN' : 'ADMINISTRACIÓN'}
                         </button>
@@ -334,7 +364,6 @@
             const [selectedWeek, setSelectedWeek] = useState('');
             const [confirmAction, setConfirmAction] = useState(null);
 
-            // Estado para edición en línea
             const [editingId, setEditingId] = useState(null);
             const [editName, setEditName] = useState('');
             const [editRate, setEditRate] = useState('');
@@ -393,14 +422,12 @@
                 setN(''); setP(''); setS('');
             };
 
-            // Función para iniciar edición
             const startEditing = (emp) => {
                 setEditingId(emp.id);
                 setEditName(emp.name);
                 setEditRate(emp.rate);
             };
 
-            // Función para guardar cambios
             const saveEdit = async (id) => {
                 try {
                     await db.collection('employees').doc(id).update({
