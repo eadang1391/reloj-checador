@@ -725,7 +725,7 @@
                                                 <td colSpan="3" className="p-5">
                                                     <div className="flex items-center gap-2">
                                                         <span className="px-4 py-1.5 rounded-full text-[9px] font-bold bg-green-100 text-green-700 border border-green-200 uppercase">PAGO REGISTRADO</span>
-                                                        <span className="font-black text-green-800 text-sm ml-2">${g.amount}</span>
+                                                        <span className="font-black text-green-800 text-sm ml-2">${Math.round(g.amount)}</span>
                                                     </div>
                                                 </td>
                                             ) : (
@@ -781,5 +781,6 @@
     </script>
 </body>
 </html>
+
 
 
