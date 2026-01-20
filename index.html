@@ -554,7 +554,7 @@
             };
 
             const confirmPayment = async (emp) => {
-                const monto = ((emp.totalMs / 3600000) * emp.rate).toFixed(2);
+                const monto = Math.round((emp.totalMs / 3600000) * emp.rate);
                 if (monto <= 0) return showNotify("No hay saldo pendiente", "error");
                 setConfirmAction({ type: 'payment', id: emp.id, name: emp.name, amount: monto });
             };
@@ -781,4 +781,5 @@
     </script>
 </body>
 </html>
+
 
